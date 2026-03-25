@@ -103,7 +103,6 @@ export const deleteContest = asyncHandler(async (req, res) => {
   res.status(201).json({messsage:"Contest deleted"})
 });
 
-
 // GET ACTIVE CONTESTS (Student)
 export const getActiveContests = asyncHandler(async (req, res) => {
   const contests = await Contest.find({ status: "active" })
