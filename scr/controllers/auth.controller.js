@@ -3,30 +3,63 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import { User } from '../models/user.model.js';
 
 
-export const registerUser = asyncHandler(async(req, res)=>{
-    const {name, email, password} = req.body;
-    if(!name || !email || !password){
-        return res.status(401).json({message: "Please provide all the fields Biplab"});
+// export const registerUser = asyncHandler(async(req, res)=>{
+//     const {name, email, password} = req.body;
+//     if(!name || !email || !password){
+//         return res.status(401).json({message: "Please provide all the fields Biplab"});
+//     }
+
+//     const userExist = await User.findOne({email});
+//     if(userExist){
+//         return res.status(401).json({message: "User already exist"});
+//     }
+
+//     const user = await User.create({
+//         name,
+//         email,
+//         password
+//     });
+
+//     res.status(201).json({
+//         message: "User registered successfully",
+//         user
+//     });
+// });
+
+
+export const registerUser = asyncHandler(async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
     }
 
-    const userExist = await User.findOne({email});
-    if(userExist){
-        return res.status(401).json({message: "User already exist"});
+    const userExist = await User.findOne({ email });
+
+    if (userExist) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
     const user = await User.create({
-        name,
-        email,
-        password
+      name,
+      email,
+      password
     });
 
     res.status(201).json({
-        message: "User registered successfully",
-        user
+      message: "User registered successfully",
+      user
     });
+
+  } catch (error) {
+    console.log("REGISTER ERROR:", error.message);
+
+    res.status(500).json({
+      message: error.message
+    });
+  }
 });
-
-
 
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
