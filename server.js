@@ -18,7 +18,7 @@ app.use(express.urlencoded({extended: true}));
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://learn-earn-contest-website.onrender.com" 
+    "https://learn-earn-contest-web-site.vercel.app" 
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE"]
