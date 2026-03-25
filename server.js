@@ -27,8 +27,9 @@ app.use("/api/v1/contest", contestRouter);
 app.get("/", (req,res) =>{
   res.status(201).json({message: "Server is running"});
 });
+const PORT = process.env.PORT || 8000;
 
-app.listen(5000, () => {
+app.listen(PORT, () => {
   connectDB();
   console.log("Server is running on port 5000");
 });
