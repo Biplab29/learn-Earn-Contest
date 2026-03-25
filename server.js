@@ -1,39 +1,42 @@
 import express from "express";
 import dotenv from "dotenv";
-dotenv.config();
+import cors from "cors";
+import cookieParser from "cookie-parser";
+
 import { connectDB } from "./scr/config/db.js";
 import userRouter from "./scr/routes/auth.route.js";
-import cookieParser from "cookie-parser";
 import contestRouter from "./scr/routes/contest.route.js";
-import cors from "cors";
 
+dotenv.config();
 
-const app = express();   
+const app = express();
 
-app.use(cookieParser());
-
-app.use(express.json());
-app.use(express.urlencoded({extended: true}));
-
+// ✅ MIDDLEWARE
 app.use(cors({
-  origin: ["http://localhost:5173", "https://learn-earn-contest-1.onrender.com/"],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: [
+    "http://localhost:5173",
+    "https://learn-earn-contest-1.onrender.com"
+  ],
   credentials: true
 }));
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// ✅ ROUTES
 app.use("/api/v1/auth", userRouter);
 app.use("/api/v1/contest", contestRouter);
 
-app.get("/", (req,res) =>{
-  res.status(201).json({message: "Ohh Lovely"});
+app.get("/", (req, res) => {
+  res.json({ message: "Server working" });
 });
 
+// ✅ CONNECT DB FIRST
+connectDB();
 
 const PORT = process.env.PORT || 8000;
 
 app.listen(PORT, () => {
-  connectDB();
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on ${PORT}`);
 });
-
-export default app;
