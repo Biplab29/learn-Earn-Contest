@@ -16,12 +16,9 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://learn-earn-contest.onrender.com"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"]
+  origin: ["http://localhost:5173", "https://learn-earn-contest-1.onrender.com/"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
 app.use("/api/v1/auth", userRouter);
