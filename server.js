@@ -32,11 +32,19 @@ app.get("/", (req, res) => {
   res.json({ message: "Server working" });
 });
 
-// ✅ CONNECT DB FIRST
-connectDB();
+
 
 const PORT = process.env.PORT || 8000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
+connectDB()
+  .then(() => {
+    console.log("DB connected");
+
+    app.listen(PORT, () => {
+      console.log(`Server running on ${PORT}`);
+    });
+
+  })
+  .catch((err) => {
+    console.log("DB ERROR:", err.message);
+  });
