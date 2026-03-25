@@ -6,12 +6,12 @@ import { User } from '../models/user.model.js';
 export const registerUser = asyncHandler(async(req, res)=>{
     const {name, email, password} = req.body;
     if(!name || !email || !password){
-        return res.status(400).json({message: "Please provide all the fields"});
+        return res.status(401).json({message: "Please provide all the fields"});
     }
 
     const userExist = await User.findOne({email});
     if(userExist){
-        return res.status(400).json({message: "User already exist"});
+        return res.status(401).json({message: "User already exist"});
     }
 
     const user = await User.create({
