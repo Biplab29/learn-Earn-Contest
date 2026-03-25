@@ -18,7 +18,9 @@ app.use(express.urlencoded({extended: true}));
 app.use("/api/v1/auth", userRouter);
 app.use("/api/v1/contest", contestRouter);
 
-
+app.get("/", (req,res) =>{
+  res.status(201).json({message: "Server is running"});
+});
 
 app.listen(5000, () => {
   connectDB();
