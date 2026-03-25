@@ -63,6 +63,23 @@ export const loginUser = asyncHandler(async (req, res) => {
 });
 
 
+export const logoutUser = asyncHandler(async (req, res) => {
+  // 🔥 Remove refresh token from DB
+  await User.findByIdAndUpdate(
+    req.user._id,
+    { refreshToken: null },
+    { new: true }
+  );
+
+  // 🔥 Clear cookies
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
+
+  return res.status(201).json({
+    message: "User logged out successfully"
+  });
+});
+
 export const getSingleUser = asyncHandler (async(req, res)=>{
 
     const {id} = req.params;

@@ -18,7 +18,7 @@ app.use(express.urlencoded({extended: true}));
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://learn-earn-contest-website-1.onrender.com" 
+    "https://learn-earn-contest.onrender.com"
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE"]
@@ -36,7 +36,7 @@ const PORT = process.env.PORT || 8000;
 
 app.listen(PORT, () => {
   connectDB();
-  console.log("Server is running on port 5000");
+  console.log(`Server is running on port ${PORT}`);
 });
 
 export default app;
