@@ -27,6 +27,8 @@ app.use("/api/v1/contest", contestRouter);
 app.get("/", (req,res) =>{
   res.status(201).json({message: "Ohh Lovely"});
 });
+
+
 const PORT = process.env.PORT || 8000;
 
 app.listen(PORT, () => {
