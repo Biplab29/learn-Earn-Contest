@@ -14,8 +14,7 @@ const app = express();
 
 app.use(cors({
   origin: [
-    "http://localhost:5173",
-    "https://learn-earn-contest-1.onrender.com"
+    "http://localhost:5173"
   ],
   credentials: true
 }));
@@ -40,6 +39,7 @@ connectDB()
     console.log("DB connected");
 
     app.listen(PORT, () => {
+
       console.log(`Server running on ${PORT}`);
     });
 
