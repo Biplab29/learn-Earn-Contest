@@ -16,6 +16,8 @@ app.use(cors({
   origin: [
     "http://localhost:5173"
   ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
@@ -36,8 +38,6 @@ const PORT = process.env.PORT || 8000;
 
 connectDB()
   .then(() => {
-    console.log("DB connected");
-
     app.listen(PORT, () => {
 
       console.log(`Server running on ${PORT}`);
