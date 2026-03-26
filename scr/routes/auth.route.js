@@ -9,7 +9,7 @@ userRouter.post("/register", registerUser);
 userRouter.post("/login", loginUser);
 userRouter.get("/user/:id", verifyJWT, getSingleUser);
 userRouter.get("/users",  verifyJWT,authorizeRoles("admin"),getAllUsers);
-userRouter.delete("/user/:id", verifyJWT, authorizeRoles("admin"), logoutUser);
+userRouter.post("/user/logout/:id", verifyJWT, authorizeRoles("admin"), logoutUser);
 
 
 export default userRouter;
