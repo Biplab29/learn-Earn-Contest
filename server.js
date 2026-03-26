@@ -5,13 +5,13 @@ import cookieParser from "cookie-parser";
 
 import { connectDB } from "./scr/config/db.js";
 import userRouter from "./scr/routes/auth.route.js";
-import contestRouter from "./scr/routes/contest.route.js";
+
 
 dotenv.config();
 
 const app = express();
 
-// ✅ MIDDLEWARE
+
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -24,9 +24,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ✅ ROUTES
-app.use("/api/v1/auth", userRouter);
-app.use("/api/v1/contest", contestRouter);
+
+app.use("/api/v1/auth",userRouter );
 
 app.get("/", (req, res) => {
   res.json({ message: "Server working" });
