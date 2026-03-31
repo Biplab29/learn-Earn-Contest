@@ -3,29 +3,6 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import { User } from '../models/user.model.js';
 
 
-// export const registerUser = asyncHandler(async(req, res)=>{
-//     const {name, email, password} = req.body;
-//     if(!name || !email || !password){
-//         return res.status(401).json({message: "Please provide all the fields Biplab"});
-//     }
-
-//     const userExist = await User.findOne({email});
-//     if(userExist){
-//         return res.status(401).json({message: "User already exist"});
-//     }
-
-//     const user = await User.create({
-//         name,
-//         email,
-//         password
-//     });
-
-//     res.status(201).json({
-//         message: "User registered successfully",
-//         user
-//     });
-// });
-
 
 export const registerUser = asyncHandler(async (req, res) => {
   try {
@@ -92,24 +69,27 @@ export const loginUser = asyncHandler(async (req, res) => {
   return res.status(201).json({
     message: "User logged in successfully",
     accessToken,
+    role: user.role,
+    user: {
+      name: user.name,
+      email: user.email
+    }
   });
 });
 
 
 export const logoutUser = asyncHandler(async (req, res) => {
-  // 🔥 Remove refresh token from DB
   await User.findByIdAndUpdate(
     req.user._id,
     { refreshToken: null },
     { new: true }
   );
 
-  // 🔥 Clear cookies
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
 
   return res.status(201).json({
-    message: "User logged out successfully"
+    message: "User logged out successfully",
   });
 });
 

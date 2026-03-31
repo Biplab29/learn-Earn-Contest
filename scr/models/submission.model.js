@@ -2,11 +2,12 @@ import mongoose from "mongoose";
 
 const submissionSchema = new mongoose.Schema(
   {
-    // user: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "User",
-    //   required: true
-    // },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    
     team: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team"
@@ -37,7 +38,7 @@ const submissionSchema = new mongoose.Schema(
       default: 0
     },
 
-    remarks: String,
+    remarks: StringA,
 
     status: {
       type: String,
@@ -51,3 +52,4 @@ const submissionSchema = new mongoose.Schema(
 
 export const Submission = mongoose.model("Submission", submissionSchema);
 
+  console.log("submission model is working");

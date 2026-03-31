@@ -1,39 +1,54 @@
-// import { Contest } from "../models/contest.model.js";
-
-// export const createContest = async (req, res) => {
-//   const data = await Contest.create({
-//     ...req.body,
-//     createdBy: req.user._id
-//   });
-//   res.json(data);
-// };
-
-// export const getContests = async (req, res) => {
-//   const data = await Contest.find();
-//   res.json(data);
-// };
 
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Contest } from "../models/contest.model.js";
 
 
 //CREATE CONTEST (Admin)
+// export const createContest = async (req, res) => {
+//   const { title, description, deadline, rewards } = req.body;
+
+//   const image = req.file?.path;
+
+//   const contest = await Contest.create({
+//     title,
+//     description,
+//     //projectBrief,
+//     deadline,
+//     rewards,
+//     image,
+//     createdBy: req.user._id
+//   });
+
+//   res.status(201).json({message:"contest created", contest});
+// };
+
 export const createContest = async (req, res) => {
-  const { title, description, deadline, rewards } = req.body;
+  const { title, description, startDate, deadline, rewards } = req.body;
 
   const image = req.file?.path;
+
+  const now = new Date();
+
+  let status = "upcoming";
+
+  if (startDate <= now && deadline > now) {
+    status = "active";
+  } else if (deadline <= now) {
+    status = "completed";
+  }
 
   const contest = await Contest.create({
     title,
     description,
-    //projectBrief,
+    startDate,
     deadline,
     rewards,
     image,
+    status,
     createdBy: req.user._id
   });
 
-  res.status(201).json({message:"contest created", contest});
+  res.status(201).json({ message: "contest created", contest });
 };
 
 
@@ -57,8 +72,8 @@ export const getContestById = asyncHandler(async (req, res) => {
   }
 
   res.status(201).json({messsage:"contest", contest});
-});
 
+});
 
 //UPDATE CONTEST (Admin)
 export const updateContest = asyncHandler(async (req, res) => {
@@ -74,7 +89,7 @@ export const updateContest = asyncHandler(async (req, res) => {
   //update object
   const updateData = {
     ...req.body,
-    ...(image && { image }) // only add image if uploaded
+    ...(image && { image }) 
   };
 
   const updated = await Contest.findByIdAndUpdate(
@@ -132,7 +147,7 @@ export const getCompletedContests = asyncHandler(async (req, res) => {
 export const updateContestStatus = asyncHandler(async (req, res) => {
   const now = new Date();
 
-  await Contest.updateMany(
+  await Contest.updateMany( 
     { deadline: { $lt: now }, status: "active" },
     { status: "completed" }
   );

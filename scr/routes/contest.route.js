@@ -34,7 +34,7 @@ contestRouter.delete("/:id",verifyJWT,authorizeRoles("admin"),deleteContest);
 contestRouter.put("/update-status",verifyJWT,authorizeRoles("admin"),updateContestStatus);
 
 
-// ================= PUBLIC / STUDENT ROUTES =================
+// ================= PUBLIC ROUTES =================
 
 //Get all contests
 contestRouter.get("/", getAllContests);

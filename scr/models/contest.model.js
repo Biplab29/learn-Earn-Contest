@@ -8,32 +8,33 @@ const contestSchema = new mongoose.Schema(
     },
 
     description: String,
+
     image: {
       type: String
     },
-    // projectBrief: {
-    //   type: String,
-    //   required: true
-    // },
+
+    startDate: {
+      type: Date,
+      required: true 
+    },
 
     deadline: {
       type: Date,
       required: true
     },
 
-    rewards: {
-      type: String
-    },
+    rewards: String,
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
     },
+
     status: {
       type: String,
       enum: ["upcoming", "active", "completed"],
-      default: "active"
+      default: "upcoming"  
     }
   },
   { timestamps: true }
@@ -42,4 +43,3 @@ const contestSchema = new mongoose.Schema(
 export const Contest = mongoose.model("Contest", contestSchema);
 
 console.log("contest model is working");
-

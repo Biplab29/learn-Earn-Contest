@@ -20,3 +20,4 @@ const participationSchema = new mongoose.Schema(
 
 export const Participation = mongoose.model("Participation", participationSchema);
 
+console.log("participation model is working");
