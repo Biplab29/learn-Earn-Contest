@@ -38,14 +38,6 @@ Userschema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Userschema.methods.generateAccessToken = function () {
-//   return jwt.sign(
-    
-//     { id: this._id },
-//     process.env.ACCESS_TOKEN_SECRET,
-//     { expiresIn: "15m" }
-//   );
-// };
 
 Userschema.methods.generateAccessToken = function () {
   return jwt.sign(
@@ -57,15 +49,6 @@ Userschema.methods.generateAccessToken = function () {
     { expiresIn: "15m" }
   );
 };
-
-// Userschema.methods.generateRefreshToken = function () {
-//   return jwt.sign(
-    
-//     { id: this._id },
-//     process.env.REFRESH_TOKEN_SECRET,
-//     { expiresIn: "7d" }
-//   );
-// };
 
 Userschema.methods.generateRefreshToken = function () {
   return jwt.sign(
