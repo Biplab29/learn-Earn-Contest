@@ -3,7 +3,6 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import { User } from '../models/user.model.js';
 
 
-
 export const registerUser = asyncHandler(async (req, res) => {
   try {
     const { name, email, password } = req.body;
