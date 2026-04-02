@@ -126,14 +126,12 @@ export const getActiveContests = asyncHandler(async (req, res) => {
   res.status(201).json({message:"Active Contests", contests});
 });
 
-
 //GET UPCOMING CONTESTS
 export const getUpcomingContests = asyncHandler(async (req, res) => {
   const contests = await Contest.find({ status: "upcoming" });
 
   res.status(201).json({message:"Upcoming contest", contests});
 });
-
 
 //GET COMPLETED CONTESTS
 export const getCompletedContests = asyncHandler(async (req, res) => {

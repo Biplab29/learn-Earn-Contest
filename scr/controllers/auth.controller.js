@@ -57,10 +57,10 @@ export const loginUser = asyncHandler(async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
- const options = {
+const options = {
   httpOnly: true,
-  secure: true,  
-  sameSite: "none"
+  secure: false,
+  sameSite: "lax"
 };
 
   res.cookie("accessToken", accessToken, options);

@@ -2,7 +2,7 @@ import asyncHandler from "../middleware/asyncHandler.js";
 import { Submission } from "../models/submission.model.js";
 import { Contest } from "../models/contest.model.js";
 
-// 1. Submit a project to a contest
+// Submit a project to a contest
 export const submitProject = asyncHandler(async (req, res) => {
   const { contestId, teamId, githubLink, liveUrl } = req.body;
 
@@ -29,7 +29,7 @@ export const submitProject = asyncHandler(async (req, res) => {
   res.status(201).json({ message: "Project submitted successfully!", submission });
 });
 
-// 2. Get all submissions for a specific contest (For Admins/Judges)
+//Get all submissions for a specific contest (For Admins/Judges)
 export const getSubmissionsByContest = asyncHandler(async (req, res) => {
   const submissions = await Submission.find({ contest: req.params.contestId })
     .populate("user", "name email")
@@ -39,7 +39,7 @@ export const getSubmissionsByContest = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Contest submissions", submissions });
 });
 
-// 3. Get my submissions (For a User to see what they submitted)
+//Get my submissions (For a User to see what they submitted)
 export const getMySubmissions = asyncHandler(async (req, res) => {
   const submissions = await Submission.find({ user: req.user._id })
     .populate("contest", "title status");
@@ -47,7 +47,7 @@ export const getMySubmissions = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "My submissions", submissions });
 });
 
-// 4. Evaluate a submission (Admin/Judge gives a score and remarks)
+//Evaluate a submission (Admin/Judge gives a score and remarks)
 export const evaluateSubmission = asyncHandler(async (req, res) => {
   const { totalScore, remarks } = req.body;
 
@@ -68,7 +68,7 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Submission evaluated successfully", submission });
 });
 
-// 5. Declare Winner (Finds the highest score and closes the contest)
+//Declare Winner (Finds the highest score and closes the contest)
 export const declareWinner = asyncHandler(async (req, res) => {
   const contest = await Contest.findById(req.params.contestId);
   if (!contest) return res.status(404).json({ message: "Contest not found" });
