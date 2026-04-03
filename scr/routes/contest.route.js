@@ -21,7 +21,7 @@ const contestRouter = express.Router();
 //================= ADMIN ROUTES =================
 
 //Create contest 
-contestRouter.post("/create",verifyJWT,authorizeRoles("admin"),upload.single("image"),createContest
+contestRouter.post("/create",verifyJWT,authorizeRoles("admin"),upload.single("banner"),createContest
 );
 
 //Update contest

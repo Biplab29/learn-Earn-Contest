@@ -56,7 +56,7 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
     { 
       totalScore, 
       remarks, 
-      status: "evaluated" // Automatically change status from "pending"
+      status: "evaluated" 
     },
     { new: true, runValidators: true }
   );
@@ -88,7 +88,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     message: "Winner declared!",
-    winner: leaderboard[0], // The #1 spot
+    winner: leaderboard[0], 
     leaderboard 
   });
 });

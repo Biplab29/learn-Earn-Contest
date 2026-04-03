@@ -142,8 +142,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
   const team = await Team.create({
     teamName,
     members: allMembers,
-    contest
-    // Removed the "leader" field entirely
   });
 
   return res.status(201).json({ message: "Team created successfully", team });
@@ -155,7 +153,7 @@ export const addMember = asyncHandler(async (req, res) => {
 
   if (!team) return res.status(404).json({ message: "Team not found" });
 
-  // 🔐 Check if the person making the request is already in the team
+  // Check if the person making the request is already in the team
   const isMember = team.members.some(memberId => memberId.toString() === req.user._id.toString());
   if (!isMember) {
     return res.status(403).json({ message: "Only existing team members can add new people" });
@@ -198,7 +196,7 @@ export const deleteTeam = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id);
   if (!team) return res.status(404).json({ message: "Team not found" });
 
-  // 🔐 Check if the person deleting the team is actually in the team
+  // Check if the person deleting the team is actually in the team
   const isMember = team.members.some(memberId => memberId.toString() === req.user._id.toString());
   if (!isMember) {
     return res.status(403).json({ message: "You must be a team member to delete this team" });

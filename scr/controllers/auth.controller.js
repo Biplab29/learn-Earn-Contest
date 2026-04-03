@@ -37,6 +37,45 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
+// export const loginUser = asyncHandler(async (req, res) => {
+//   const { email, password } = req.body;
+
+//   if (!email || !password) {
+//     return res.status(400).json({ message: "Please provide all fields" });
+//   }
+
+//   const user = await User.findOne({ email }).select("+password");
+
+//   if (!user || !(await user.comparePassword(password))) {
+//     return res.status(401).json({ message: "Invalid email or password" });
+//   }
+
+//   const accessToken = user.generateAccessToken();
+//   const refreshToken = user.generateRefreshToken();
+
+//   user.refreshToken = refreshToken;
+//   await user.save();
+
+// const options = {
+//   httpOnly: true,
+//   secure: true,
+//   sameSite: "none"
+// };
+
+//   res.cookie("accessToken", accessToken, options);
+//   res.cookie("refreshToken", refreshToken, options);
+
+//   return res.status(201).json({
+//     message: "User logged in successfully",
+//     accessToken,
+//     role: user.role,
+//     user: {
+//       name: user.name,
+//       email: user.email
+//     }
+//   });
+// });
+
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -56,25 +95,41 @@ export const loginUser = asyncHandler(async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
-const options = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "none"
-};
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", 
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  };
 
   res.cookie("accessToken", accessToken, options);
   res.cookie("refreshToken", refreshToken, options);
 
-  return res.status(201).json({
+  return res.status(200).json({
     message: "User logged in successfully",
     accessToken,
     role: user.role,
     user: {
       name: user.name,
-      email: user.email
-    }
+      email: user.email,
+    },
   });
 });
+
+
+// export const logoutUser = asyncHandler(async (req, res) => {
+//   await User.findByIdAndUpdate(
+//     req.user._id,
+//     { refreshToken: null },
+//     { new: true }
+//   );
+
+//   res.clearCookie("accessToken");
+//   res.clearCookie("refreshToken");
+
+//   return res.status(201).json({
+//     message: "User logged out successfully",
+//   });
+// });
 
 
 export const logoutUser = asyncHandler(async (req, res) => {
@@ -84,13 +139,20 @@ export const logoutUser = asyncHandler(async (req, res) => {
     { new: true }
   );
 
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  };
 
-  return res.status(201).json({
+  res.clearCookie("accessToken", options);
+  res.clearCookie("refreshToken", options);
+
+  return res.status(200).json({
     message: "User logged out successfully",
   });
 });
+
 
 export const getSingleUser = asyncHandler (async(req, res)=>{
 
