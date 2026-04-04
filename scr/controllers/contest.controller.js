@@ -175,9 +175,64 @@ const isValidDate = (date) => {
 // ===============================
 // CREATE CONTEST
 // ===============================
+// export const createContest = asyncHandler(async (req, res) => {
+//   const { title, description, startDate, deadline, rewards } = req.body;
+//   const image = req.file?.path || "";
+
+//   if (!title || !description || !startDate || !deadline) {
+//     return res.status(400).json({
+//       message: "Title, description, startDate and deadline are required",
+//     });
+//   }
+
+//   if (!req.user || !req.user._id) {
+//     return res.status(401).json({
+//       message: "Unauthorized user",
+//     });
+//   }
+
+//   const parsedStartDate = new Date(startDate);
+//   const parsedDeadline = new Date(deadline);
+
+//   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
+//     return res.status(400).json({
+//       message: "Invalid startDate or deadline format",
+//     });
+//   }
+
+//   if (parsedStartDate >= parsedDeadline) {
+//     return res.status(400).json({
+//       message: "Deadline must be greater than startDate",
+//     });
+//   }
+
+//   const contest = await Contest.create({
+//     title: title.trim(),
+//     description: description.trim(),
+//     startDate: parsedStartDate,
+//     deadline: parsedDeadline,
+//     rewards,
+//     image,
+//     status: getStatus(parsedStartDate, parsedDeadline),
+//     createdBy: req.user._id,
+//   });
+
+//   const populatedContest = await Contest.findById(contest._id).populate(
+//     "createdBy",
+//     "name email"
+//   );
+
+//   return res.status(201).json({
+//     success: true,
+//     message: "Contest created successfully",
+//     contest: populatedContest,
+//   });
+// });
 export const createContest = asyncHandler(async (req, res) => {
   const { title, description, startDate, deadline, rewards } = req.body;
-  const image = req.file?.path || "";
+
+  console.log("BODY =>", req.body);
+  console.log("USER =>", req.user);
 
   if (!title || !description || !startDate || !deadline) {
     return res.status(400).json({
@@ -212,20 +267,15 @@ export const createContest = asyncHandler(async (req, res) => {
     startDate: parsedStartDate,
     deadline: parsedDeadline,
     rewards,
-    image,
+    image: "",
     status: getStatus(parsedStartDate, parsedDeadline),
     createdBy: req.user._id,
   });
 
-  const populatedContest = await Contest.findById(contest._id).populate(
-    "createdBy",
-    "name email"
-  );
-
   return res.status(201).json({
     success: true,
     message: "Contest created successfully",
-    contest: populatedContest,
+    contest,
   });
 });
 
@@ -414,3 +464,4 @@ export const getCompletedContests = asyncHandler(async (req, res) => {
   });
 });
 
+console.log("contest controller is working");

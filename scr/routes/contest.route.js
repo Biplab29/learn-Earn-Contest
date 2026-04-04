@@ -84,7 +84,7 @@ contestRouter.post(
 
 // ✅ Update contest
 contestRouter.put(
-  "/:id",
+  "/update/:id",
   verifyJWT,
   authorizeRoles("admin"),
   upload.single("image"),
@@ -93,7 +93,7 @@ contestRouter.put(
 
 // ✅ Delete contest
 contestRouter.delete(
-  "/:id",
+  "/delete/:id",
   verifyJWT,
   authorizeRoles("admin"),
   deleteContest
