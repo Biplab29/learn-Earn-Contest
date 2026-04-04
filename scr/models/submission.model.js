@@ -38,7 +38,7 @@ const submissionSchema = new mongoose.Schema(
       default: 0
     },
 
-    remarks: StringA,
+    remarks: String,
 
     status: {
       type: String,

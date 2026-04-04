@@ -11,11 +11,11 @@ import { verifyJWT } from "../middleware/checkAuthUser.js";
 
 const teamRouter = express.Router();
 
-// --- Protected Routes (Requires Auth) ---
+// --- Protected Routes  ---
 
 // POST /api/teams -> Creates a team
 teamRouter.post("/", verifyJWT, teamCreate);
-
+    
 // GET /api/teams/my-teams -> Gets all teams for the logged-in user
 teamRouter.get("/my-teams", verifyJWT, getMyTeams);
 

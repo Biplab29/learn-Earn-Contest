@@ -179,7 +179,9 @@ export const addMember = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Member added successfully", team });
 });
 
+
 export const getMyTeams = asyncHandler(async (req, res) => {
+  console.log(req.user);
   const teams = await Team.find({ members: req.user._id })
     .populate("members", "name email")
     .populate("contest", "title");

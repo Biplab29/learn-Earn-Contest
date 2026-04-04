@@ -59,19 +59,14 @@ import asyncHandler from "../middleware/asyncHandler.js";
 import { User } from "../models/user.model.js";
 
 const verifyJWT = asyncHandler(async (req, res, next) => {
-  const authHeader = req.headers.authorization;
 
   const token =
     req.cookies?.accessToken ||
-    (authHeader && authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null);
+    req.header("Authorization").replace("Bearer ", "");
 
   if (!token) {
     return res.status(401).json({ message: "Token not found" });
   }
-
-  console.log("TOKEN:", token);
 
   let decoded;
 
@@ -81,21 +76,20 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 
-  // ✅ FIXED (id or _id both handled)
-  const userId = decoded.id || decoded._id;
-
-  const user = await User.findById(userId).select("-password");
+  const user = await User.findById(decoded.id || decoded._id).select("-password");
 
   if (!user) {
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "User not found" });
   }
 
   req.user = user;
+
   next();
 });
 
 export const authorizeRoles = (...roles) => {
   return asyncHandler(async (req, res, next) => {
+
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -111,5 +105,4 @@ export const authorizeRoles = (...roles) => {
 };
 
 export { verifyJWT };
-
 console.log("AuthUser is working");
