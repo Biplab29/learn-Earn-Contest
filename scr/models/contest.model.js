@@ -23,9 +23,9 @@ const contestSchema = new mongoose.Schema(
       required: true
     },
 
-    rewards: {
+    rewards: [{
       type: String
-    },
+    }],
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
