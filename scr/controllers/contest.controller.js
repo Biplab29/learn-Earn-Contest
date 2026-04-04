@@ -244,7 +244,7 @@ export const updateContest = asyncHandler(async (req, res) => {
   res.status(200).json({
     message: "Contest updated",
     updated
-  });
+  });                                                                                 
 });
 
 // delete

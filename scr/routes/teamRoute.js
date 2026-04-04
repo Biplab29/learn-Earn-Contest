@@ -11,24 +11,26 @@ import { verifyJWT } from "../middleware/checkAuthUser.js";
 
 const teamRouter = express.Router();
 
-// --- Protected Routes  ---
 
-// POST /api/teams -> Creates a team
+// ================= PROTECTED =================
+
+// create team
 teamRouter.post("/", verifyJWT, teamCreate);
-    
-// GET /api/teams/my-teams -> Gets all teams for the logged-in user
+
+// my teams (specific route first)
 teamRouter.get("/my-teams", verifyJWT, getMyTeams);
 
-// PATCH /api/teams/:id/members -> Adds a member to a specific team
+// add member
 teamRouter.patch("/:id/members", verifyJWT, addMember);
 
-// DELETE /api/teams/:id -> Deletes a specific team
+// delete team
 teamRouter.delete("/:id", verifyJWT, deleteTeam);
 
 
-// --- Public Routes ---
+// ================= PUBLIC =================
 
-// GET /api/teams/contest/:contestId -> Gets all teams for a specific contest
+// teams by contest (specific before generic)
 teamRouter.get("/contest/:contestId", getTeamsByContest);
+
 
 export default teamRouter;
