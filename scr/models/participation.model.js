@@ -1,23 +1,23 @@
-// import mongoose from "mongoose";
+import mongoose from "mongoose";
 
-// const participationSchema = new mongoose.Schema(
-//   {
-//     user: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "User",
-//       required: true
-//     },
+const participationSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
 
-//     contest: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "Contest",
-//       required: true
-//     }
-//   },
-//   { timestamps: true }
-// );
+    contest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contest",
+      required: true
+    }
+  },
+  { timestamps: true }
+);
 
 
-// export const Participation = mongoose.model("Participation", participationSchema);
+export const Participation = mongoose.model("Participation", participationSchema);
 
-// console.log("participation model is working");
+console.log("participation model is working");

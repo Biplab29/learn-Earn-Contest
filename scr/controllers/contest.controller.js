@@ -175,6 +175,7 @@ const isValidDate = (date) => {
 // ===============================
 // CREATE CONTEST
 // ===============================
+
 // export const createContest = asyncHandler(async (req, res) => {
 //   const { title, description, startDate, deadline, rewards } = req.body;
 //   const image = req.file?.path || "";
@@ -228,11 +229,14 @@ const isValidDate = (date) => {
 //     contest: populatedContest,
 //   });
 // });
+
 export const createContest = asyncHandler(async (req, res) => {
   const { title, description, startDate, deadline, rewards } = req.body;
+  const image = req.file?.path || "";
 
   console.log("BODY =>", req.body);
   console.log("USER =>", req.user);
+  console.log("FILE =>", req.file);
 
   if (!title || !description || !startDate || !deadline) {
     return res.status(400).json({
@@ -267,7 +271,7 @@ export const createContest = asyncHandler(async (req, res) => {
     startDate: parsedStartDate,
     deadline: parsedDeadline,
     rewards,
-    image: "",
+    image,
     status: getStatus(parsedStartDate, parsedDeadline),
     createdBy: req.user._id,
   });
