@@ -6,37 +6,56 @@ import { Submission } from "../models/submission.model.js";
 export const getDashboardStats = asyncHandler(async (req, res) => {
 
   const [
-    activeContests,
+    activeContestsCount,
+    activeContestsList,
     totalUsers,
     totalSubmissions,
     pendingApprovals,
-    completedContests
+    completedContestsCount,
+    completedContestsList
   ] = await Promise.all([
 
-    // Active Contest
+    // ✅ Count
     Contest.countDocuments({ status: "active" }),
 
-    // Total Users
+    // ✅ Active Contest Details
+    Contest.find({ status: "active" })
+      .select("title startDate endDate prize status")
+      .sort({ createdAt: -1 }),
+
+    // Users
     User.countDocuments(),
 
-    // Total Submissions
+    // Submissions
     Submission.countDocuments(),
 
-    // Pending 
+    // Pending
     Submission.countDocuments({ status: "pending" }),
 
-    // Completed Contest
-    Contest.countDocuments({ status: "completed" })
+    // Completed Count
+    Contest.countDocuments({ status: "completed" }),
+
+    // Completed Contest Details
+    Contest.find({ status: "completed" })
+      .select("title startDate endDate prize status")
+      .sort({ createdAt: -1 })
+
   ]);
 
-  res.status(201).json({
+  res.status(200).json({
     success: true,
     data: {
-      activeContests,
+      activeContests: {
+        count: activeContestsCount,
+        list: activeContestsList
+      },
+      completedContests: {
+        count: completedContestsCount,
+        list: completedContestsList
+      },
       totalUsers,
       totalSubmissions,
-      pendingApprovals,
-      completedContests
+      pendingApprovals
     }
   });
 });

@@ -130,7 +130,7 @@ import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
 
 
-// ✅ CREATE TEAM
+// CREATE TEAM
 export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, members, contest } = req.body;
 
@@ -140,7 +140,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // ❌ prevent user joining multiple teams in same contest
+  // prevent user joining multiple teams in same contest
   const existingTeam = await Team.findOne({
     contest,
     members: req.user._id
@@ -152,12 +152,12 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // ✅ include creator + remove duplicates
+  // include creator + remove duplicates
   const allMembers = [
     ...new Set([req.user._id.toString(), ...(members || [])])
   ];
 
-  // ❌ max team size
+  // max team size
   if (allMembers.length > 4) {
     return res.status(400).json({
       message: "Max 4 members allowed"
@@ -202,14 +202,14 @@ export const addMember = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Team is full" });
   }
 
-  //  duplicate
+  //  check duplicate entry 
   if (team.members.includes(userId)) {
     return res.status(400).json({
       message: "User already in team"
     });
   }
 
-  //  user already in another team (IMPORTANT)
+  //  user already in another team
   const alreadyInTeam = await Team.findOne({
     contest: team.contest,
     members: userId
