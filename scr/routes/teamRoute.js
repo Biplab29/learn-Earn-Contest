@@ -29,7 +29,8 @@ teamRouter.delete("/:id", verifyJWT, deleteTeam);
 
 // ================= PUBLIC =================
 
-// teams by contest (specific before generic)
+// teams by contest 
+
 teamRouter.get("/contest/:contestId", getTeamsByContest);
 
 

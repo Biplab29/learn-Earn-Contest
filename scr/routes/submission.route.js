@@ -4,24 +4,32 @@ import {
   getSubmissionsByContest,
   getMySubmissions,
   evaluateSubmission,
-  declareWinner
+  declareWinner,
+  getContestParticipantCount,
+  getAllContestParticipantCount,
+  getMyJoinedContestCount
 } from "../controllers/submission.controller.js";
+import { verifyJWT } from "../middleware/checkAuthUser.js ";
+import { authorizeRoles } from "../middleware/checkAuthUser.js";
+
+const submissionRouter = express.Router();
+
+submissionRouter.post("/", verifyJWT, submitProject);
+
+submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
+
+submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount); // ekjon koto gulo contest a join koreche
 
 
-const router = express.Router();
+submissionRouter.get("/contest/:contestId", getSubmissionsByContest);
+
+submissionRouter.get("/contest/:contestId/participant-count", getContestParticipantCount); //kotojon ekta contest a participatet koreche
+
+submissionRouter.get("/participant-count", getAllContestParticipantCount); //total kotojon All contest a participates koreche 
 
 
-router.post("/", submitProject);
+submissionRouter.put("/:id/evaluate", verifyJWT, authorizeRoles("admin"),evaluateSubmission);
 
-router.get("/my-submissions", getMySubmissions);
+submissionRouter.put("/contest/:contestId/declare-winner", authorizeRoles("admin"), verifyJWT, declareWinner);
 
-router.get("/contest/:contestId", getSubmissionsByContest);
-
-// --- ADMIN ROUTES ---
-
-router.put("/:id/evaluate", evaluateSubmission);
-
-
-router.put("/contest/:contestId/declare-winner", declareWinner);
-
-export default router;
+export default submissionRouter;

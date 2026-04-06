@@ -167,7 +167,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
   const team = await Team.create({
     teamName,
     members: allMembers,
-    contest   // ✅ FIXED (important)
+    contest  
   });
 
   res.status(201).json({
@@ -177,7 +177,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
 });
 
 
-// ✅ ADD MEMBER
+// ADD MEMBER
 export const addMember = asyncHandler(async (req, res) => {
   const { userId } = req.body;
 
@@ -186,7 +186,7 @@ export const addMember = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Team not found" });
   }
 
-  // ✅ must be existing member
+  //  must be existing member
   const isMember = team.members.some(
     m => m.toString() === req.user._id.toString()
   );
@@ -197,19 +197,19 @@ export const addMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // ❌ max size
+  //  max size
   if (team.members.length >= 4) {
     return res.status(400).json({ message: "Team is full" });
   }
 
-  // ❌ duplicate
+  //  duplicate
   if (team.members.includes(userId)) {
     return res.status(400).json({
       message: "User already in team"
     });
   }
 
-  // ❌ user already in another team (IMPORTANT)
+  //  user already in another team (IMPORTANT)
   const alreadyInTeam = await Team.findOne({
     contest: team.contest,
     members: userId
@@ -221,7 +221,7 @@ export const addMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // ✅ check user exists
+  //  check user exists
   const user = await User.findById(userId);
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -237,7 +237,7 @@ export const addMember = asyncHandler(async (req, res) => {
 });
 
 
-// ✅ GET MY TEAMS
+//  GET MY TEAMS
 export const getMyTeams = asyncHandler(async (req, res) => {
   const teams = await Team.find({ members: req.user._id })
     .populate("members", "name email")
@@ -250,7 +250,7 @@ export const getMyTeams = asyncHandler(async (req, res) => {
 });
 
 
-// ✅ GET TEAMS BY CONTEST
+//  GET TEAMS BY CONTEST
 export const getTeamsByContest = asyncHandler(async (req, res) => {
   const teams = await Team.find({ contest: req.params.contestId })
     .populate("members", "name email");
@@ -262,7 +262,7 @@ export const getTeamsByContest = asyncHandler(async (req, res) => {
 });
 
 
-// ✅ DELETE TEAM (only creator)
+//  DELETE TEAM (only creator)
 export const deleteTeam = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id);
 
@@ -270,7 +270,7 @@ export const deleteTeam = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Team not found" });
   }
 
-  // ✅ only creator (first member)
+  //  only creator (first member)
   if (team.members[0].toString() !== req.user._id.toString()) {
     return res.status(403).json({
       message: "Only team creator can delete team"

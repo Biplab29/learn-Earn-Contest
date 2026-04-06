@@ -6,6 +6,8 @@ import { connectDB } from "./scr/config/db.js";
 import userRouter from "./scr/routes/auth.route.js";
 import contestRouter from "./scr/routes/contest.route.js";
 import teamRouter from "./scr/routes/teamRoute.js";
+import submissionRouter from "./scr/routes/submission.route.js";
+import dashboardRouter from "./scr/routes/dashboard.routes.js";
 
 
 
@@ -32,6 +34,8 @@ app.use(cookieParser());
 app.use("/api/v1/auth",userRouter );
 app.use("/api/v1/contest", contestRouter);
 app.use("/api/v1/team", teamRouter);
+app.use("/api/v1/submission", submissionRouter);
+app.use("/api/v1/", dashboardRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "Server working" });
