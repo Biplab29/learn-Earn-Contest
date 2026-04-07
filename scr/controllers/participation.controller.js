@@ -59,7 +59,7 @@ export const joinContestTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
     const { teamName, memberIds } = req.body; // Expecting an array of user IDs
-    const userId = req.user._id;
+    const userId = req.user._id ;
 
     // Combine the creator's ID with the invited members and remove duplicates
     const allMembers = [...new Set([...memberIds, userId.toString()])];
@@ -148,11 +148,11 @@ export const getContestParticipants = asyncHandler(async (req, res) => {
 export const getMyParticipations = asyncHandler(async (req, res) => {
   // Finds all contests the logged-in user has joined
   const participations = await Participation.find({ user: req.user._id })
-    .populate("contest", "title startDate deadline status")
+    .populate("contest", "title startDate deadline status image")
     .populate({
       path: "team",
       select: "teamName members",
-      populate: { path: "members", select: "name email" } // Gets the details of all team members too!
+      populate: { path: "members", select: "name email" }
     })
     .sort({ createdAt: -1 });
 
