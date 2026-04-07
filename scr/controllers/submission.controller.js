@@ -101,21 +101,10 @@ export const submitProject = asyncHandler(async (req, res) => {
   const { contestId, githubLink, liveUrl } = req.body;
   const userId = req.user._id;
 
-  // ==========================================
-  // NEW SAFETY CHECKS
-  // ==========================================
-  
-  // Prevent the CastError server crash!
-  if (!mongoose.Types.ObjectId.isValid(contestId)) {
-    return res.status(400).json({ message: "Invalid Contest ID format." });
-  }
-
   // Ensure they actually provided the required links
   if (!githubLink) {
     return res.status(400).json({ message: "A GitHub link is required to submit." });
   }
-
-  // ==========================================
 
   // 1. Check if contest exists and is active
   const contest = await Contest.findById(contestId);

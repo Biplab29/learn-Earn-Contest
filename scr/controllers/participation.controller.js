@@ -58,7 +58,7 @@ export const joinContestSolo = async (req, res) => {
 export const joinContestTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { teamName, memberIds } = req.body; // Expecting an array of user IDs
+    const { teamName, memberIds } = req.body; 
     const userId = req.user._id ;
 
     // Combine the creator's ID with the invited members and remove duplicates
