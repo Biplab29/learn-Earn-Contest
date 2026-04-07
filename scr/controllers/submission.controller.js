@@ -2,30 +2,164 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Submission } from "../models/submission.model.js";
 import { Contest } from "../models/contest.model.js";
+import { Participation } from "../models/participation.model.js";
+import mongoose from "mongoose";
 
 // Submit a project to a contest
-export const submitProject = asyncHandler(async (req, res) => {
-  const { contestId, teamId, githubLink, liveUrl } = req.body;
+// export const submitProject = asyncHandler(async (req, res) => {
+//   const { contestId, teamId, githubLink, liveUrl } = req.body;
 
+//   const contest = await Contest.findById(contestId);
+//   if (!contest || contest?.status !== "active") {
+//     return res.status(400).json({ message: "Contest is not active for submissions" });
+//   }
+
+//   const existingSubmission = await Submission.findOne({
+//     user: req.user._id,
+//     contest: contestId
+//   });
+
+//   if (existingSubmission) {
+//     return res.status(400).json({
+//       message: "You have already submitted a project for this contest"
+//     });
+//   }
+
+//   const submission = await Submission.create({
+//     user: req.user._id,
+//     team: teamId || null,
+//     contest: contestId,
+//     githubLink,
+//     liveUrl,
+//   });
+
+//   res.status(201).json({
+//     message: "Project submitted successfully!",
+//     submission
+//   });
+// });
+
+// export const submitProject = asyncHandler(async (req, res) => {
+//   const { contestId, githubLink, liveUrl } = req.body;
+//   const userId = req.user._id;
+
+//   // 1. Check if contest exists and is active
+//   const contest = await Contest.findById(contestId);
+//   if (!contest || contest?.status !== "active") {
+//     return res.status(400).json({ message: "Contest is not active for submissions" });
+//   }
+
+//   // 2. Verify the user actually joined the contest
+//   const participation = await Participation.findOne({
+//     user: userId,
+//     contest: contestId
+//   });
+
+//   if (!participation) {
+//     return res.status(403).json({ message: "You must join this contest before submitting." });
+//   }
+
+//   // 3. Check for existing submissions smartly (Solo vs Team)
+//   let existingSubmission;
+  
+//   if (participation.participationType === "team") {
+//     // If they are in a team, check if ANY team member already submitted for this team
+//     existingSubmission = await Submission.findOne({
+//       contest: contestId,
+//       team: participation.team
+//     });
+//   } else {
+//     existingSubmission = await Submission.findOne({
+//       contest: contestId,
+//       user: userId,
+//       team: null 
+//     });
+//   }
+
+//   if (existingSubmission) {
+//     return res.status(400).json({
+//       message: "A submission already exists for you or your team in this contest."
+//     });
+//   }
+
+//   // 4. Create the submission
+//   const submission = await Submission.create({
+//     user: userId, // Tracks exactly WHO clicked the submit button
+//     team: participation.team || null, // Auto-assigns team ID securely from the database
+//     contest: contestId,
+//     githubLink,
+//     liveUrl,
+//   });
+
+//   res.status(201).json({
+//     message: "Project submitted successfully!",
+//     submission
+//   });
+// });
+
+export const submitProject = asyncHandler(async (req, res) => {
+  const { contestId, githubLink, liveUrl } = req.body;
+  const userId = req.user._id;
+
+  // ==========================================
+  // NEW SAFETY CHECKS
+  // ==========================================
+  
+  // Prevent the CastError server crash!
+  if (!mongoose.Types.ObjectId.isValid(contestId)) {
+    return res.status(400).json({ message: "Invalid Contest ID format." });
+  }
+
+  // Ensure they actually provided the required links
+  if (!githubLink) {
+    return res.status(400).json({ message: "A GitHub link is required to submit." });
+  }
+
+  // ==========================================
+
+  // 1. Check if contest exists and is active
   const contest = await Contest.findById(contestId);
   if (!contest || contest?.status !== "active") {
     return res.status(400).json({ message: "Contest is not active for submissions" });
   }
 
-  const existingSubmission = await Submission.findOne({
-    user: req.user._id,
+  // 2. Verify the user actually joined the contest
+  const participation = await Participation.findOne({
+    user: userId,
     contest: contestId
   });
 
-  if (existingSubmission) {
-    return res.status(400).json({
-      message: "You have already submitted a project for this contest"
+  if (!participation) {
+    return res.status(403).json({ message: "You must join this contest before submitting." });
+  }
+
+  // 3. Check for existing submissions smartly (Solo vs Team)
+  let existingSubmission;
+  
+  if (participation.participationType === "team") {
+    // If they are in a team, check if ANY team member already submitted for this team
+    existingSubmission = await Submission.findOne({
+      contest: contestId,
+      team: participation.team
+    });
+  } else {
+    existingSubmission = await Submission.findOne({
+      contest: contestId,
+      user: userId,
+      team: null 
     });
   }
 
+  if (existingSubmission) {
+    return res.status(400).json({
+      message: "A submission already exists for you or your team in this contest."
+    });
+  }
+
+  // 4. Create the submission
   const submission = await Submission.create({
-    user: req.user._id,
-    team: teamId || null,
+    user: userId, 
+    team: participation.team || null, 
     contest: contestId,
     githubLink,
     liveUrl,
