@@ -108,10 +108,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     message: "User logged in successfully",
     accessToken,
     role: user.role,
-    user: {
-      name: user.name,
-      email: user.email,
-    },
+    user
   });
 });
 

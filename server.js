@@ -8,6 +8,7 @@ import contestRouter from "./scr/routes/contest.route.js";
 import teamRouter from "./scr/routes/teamRoute.js";
 import submissionRouter from "./scr/routes/submission.route.js";
 import dashboardRouter from "./scr/routes/dashboard.routes.js";
+import participationRouter from "./scr/routes/participation.routes.js";
 
 
 
@@ -36,6 +37,7 @@ app.use("/api/v1/contest", contestRouter);
 app.use("/api/v1/team", teamRouter);
 app.use("/api/v1/submission", submissionRouter);
 app.use("/api/v1/", dashboardRouter);
+app.use("/api/v1/participations", participationRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "Server working" });
