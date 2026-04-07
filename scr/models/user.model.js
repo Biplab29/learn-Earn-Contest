@@ -46,7 +46,7 @@ Userschema.methods.generateAccessToken = function () {
       role: this.role  
     },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "1D" }
   );
 };
 
