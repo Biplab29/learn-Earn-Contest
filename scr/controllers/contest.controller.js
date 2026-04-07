@@ -204,6 +204,7 @@ export const deleteContest = asyncHandler(async (req, res) => {
 // ===============================
 // GET ACTIVE CONTESTS
 // ===============================
+
 export const getActiveContests = asyncHandler(async (req, res) => {
   const now = new Date();
 
@@ -213,14 +214,26 @@ export const getActiveContests = asyncHandler(async (req, res) => {
   })
     .populate("createdBy", "name email")
     .sort({ deadline: 1 });
+  const updatedContests = contests.map((contest) => {
+    const start = new Date(contest.startDate);
+    const end = new Date(contest.deadline);
+
+    let status = "upcoming";
+    if (start <= now && end > now) status = "active";
+    if (end <= now) status = "completed";
+
+    return {
+      ...contest.toObject(),
+      status,
+    };
+  });
 
   return res.status(200).json({
     success: true,
     message: "Active contests fetched successfully",
-    contests,
+    contests: updatedContests,
   });
 });
-
 // ===============================
 // GET UPCOMING CONTESTS
 // ===============================

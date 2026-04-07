@@ -3,12 +3,48 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import { User } from '../models/user.model.js';
 
 
+// export const registerUser = asyncHandler(async (req, res) => {
+//   try {
+//     const { name, email, password } = req.body;
+
+//     if (!name || !email || !password) {
+//       return res.status(400).json({ message: "All fields required" });
+//     }
+
+//     const userExist = await User.findOne({ email });
+
+//     if (userExist) {
+//       return res.status(400).json({ message: "User already exists" });
+//     }
+
+//     const user = await User.create({
+//       name,
+//       email,
+//       password
+//     });
+
+//     res.status(201).json({
+//       message: "User registered successfully",
+//       user
+//     });
+
+//   } catch (error) {
+//     console.log("REGISTER ERROR:", error.message);
+
+//     res.status(500).json({
+//       message: error.message
+//     });
+//   }
+// });
+
 export const registerUser = asyncHandler(async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    // 1. Destructure the new fields from req.body
+    const { name, email, password, phoneNumber, gender } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields required" });
+    // 2. Update validation to include new fields if they are mandatory
+    if (!name || !email || !password || !phoneNumber || !gender) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
     const userExist = await User.findOne({ email });
@@ -17,15 +53,22 @@ export const registerUser = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
+    // 3. Pass the new fields into the create method
     const user = await User.create({
       name,
       email,
-      password
+      password,
+      phoneNumber,
+      gender
     });
+
+    // Remove password from the response for security
+    const userResponse = user.toObject();
+    delete userResponse.password;
 
     res.status(201).json({
       message: "User registered successfully",
-      user
+      user: userResponse
     });
 
   } catch (error) {
@@ -37,44 +80,6 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-// export const loginUser = asyncHandler(async (req, res) => {
-//   const { email, password } = req.body;
-
-//   if (!email || !password) {
-//     return res.status(400).json({ message: "Please provide all fields" });
-//   }
-
-//   const user = await User.findOne({ email }).select("+password");
-
-//   if (!user || !(await user.comparePassword(password))) {
-//     return res.status(401).json({ message: "Invalid email or password" });
-//   }
-
-//   const accessToken = user.generateAccessToken();
-//   const refreshToken = user.generateRefreshToken();
-
-//   user.refreshToken = refreshToken;
-//   await user.save();
-
-// const options = {
-//   httpOnly: true,
-//   secure: true,
-//   sameSite: "none"
-// };
-
-//   res.cookie("accessToken", accessToken, options);
-//   res.cookie("refreshToken", refreshToken, options);
-
-//   return res.status(201).json({
-//     message: "User logged in successfully",
-//     accessToken,
-//     role: user.role,
-//     user: {
-//       name: user.name,
-//       email: user.email
-//     }
-//   });
-// });
 
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
