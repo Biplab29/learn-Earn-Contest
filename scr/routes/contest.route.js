@@ -62,7 +62,7 @@ import {
   deleteContest,
   getActiveContests,
   getUpcomingContests,
-  getCompletedContests,
+  getCompletedContests
 } from "../controllers/contest.controller.js";
 
 import { upload } from "../middleware/uploadMiddleware.js";
