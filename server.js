@@ -9,6 +9,8 @@ import teamRouter from "./scr/routes/teamRoute.js";
 import submissionRouter from "./scr/routes/submission.route.js";
 import dashboardRouter from "./scr/routes/dashboard.routes.js";
 import participationRouter from "./scr/routes/participation.routes.js";
+import passport from "passport";
+import oAuthRouter from "./scr/routes/oAuth.js";
 
 
 
@@ -31,7 +33,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(passport.initialize());
 
+app.use("/api/v1/oauth", oAuthRouter);
 app.use("/api/v1/auth",userRouter );
 app.use("/api/v1/contest", contestRouter);
 app.use("/api/v1/team", teamRouter);

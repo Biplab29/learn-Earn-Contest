@@ -58,22 +58,113 @@ export const joinContestSolo = async (req, res) => {
 // 2. JOIN AS A TEAM
 // ==========================================
 
+// export const joinContestTeam = async (req, res) => {
+//   try {
+//     const { contestId } = req.params;
+//     // CHANGE 1: Expect an array of emails instead of memberIds
+//     const { teamName, memberEmails = [] } = req.body; 
+//     const userId = req.user._id;
+
+    
+//     // 1. Search the database for all provided emails
+//     const foundUsers = await User.find({ email: { $in: memberEmails } });
+    
+//     // 2. Extract the emails that were actually found in the DB
+//     const foundEmails = foundUsers.map(user => user.email);
+    
+//     // 3. Find which emails are missing (provided by user, but not in DB)
+//     const missingEmails = memberEmails.filter(email => !foundEmails.includes(email));
+
+//     // 4. If any emails are missing, block the team creation
+//     if (missingEmails.length > 0) {
+//       return res.status(400).json({ 
+//         message: `Cannot create team. The following users must register an account first: ${missingEmails.join(", ")}` 
+//       });
+//     }
+
+//     // 5. If all emails exist, extract their ObjectIds
+//     const memberIds = foundUsers.map(user => user._id.toString());
+
+//     // ==========================================
+
+//     // Combine the creator's ID with the invited members and remove duplicates
+//     const allMembers = [...new Set([...memberIds, userId.toString()])];
+
+//     // Optional but recommended: Check team size (e.g., max 4 members)
+//     if (allMembers.length > 4) {
+//       return res.status(400).json({ message: "A team can have a maximum of 4 members." });
+//     }
+
+//     // 1. Check if contest exists and is open
+//     const contest = await Contest.findById(contestId);
+//     if (!contest) return res.status(404).json({ message: "Contest not found" });
+    
+//     if (new Date(contest.deadline) < new Date()) {
+//       return res.status(400).json({ message: "Contest deadline has passed." });
+//     }
+
+//     // 2. Check if the team name is already taken for THIS contest
+//     const existingTeamName = await Team.findOne({ contest: contestId, teamName });
+//     if (existingTeamName) {
+//       return res.status(400).json({ message: "This team name is already taken for this contest." });
+//     }
+
+//     // 3. Check if ANY of the members are already participating (Solo or Team)
+//     const existingParticipants = await Participation.find({
+//       contest: contestId,
+//       user: { $in: allMembers }
+//     }).populate("user", "name"); 
+
+//     if (existingParticipants.length > 0) {
+//       const duplicateNames = existingParticipants.map(p => p.user.name).join(", ");
+//       return res.status(400).json({ 
+//         message: `Cannot create team. The following users are already participating in this contest: ${duplicateNames}` 
+//       });
+//     }
+
+//     // 4. Create the Team document
+//     const newTeam = await Team.create({
+//       teamName,
+//       members: allMembers,
+//       contest: contestId
+//     });
+
+//     // 5. Create a Participation document for EACH member
+//     const participationDocs = allMembers.map((memberId) => ({
+//       user: memberId,
+//       contest: contestId,
+//       participationType: "team",
+//       team: newTeam._id
+//     }));
+
+//     await Participation.insertMany(participationDocs);
+
+//     return res.status(201).json({ 
+//       message: "Team created and registered successfully", 
+//       team: newTeam 
+//     });
+
+//   } catch (error) {
+//     return res.status(500).json({ error: error.message });
+//   }
+// };
+
 export const joinContestTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
-    // CHANGE 1: Expect an array of emails instead of memberIds
-    const { teamName, memberEmails = [] } = req.body; 
+    
+    // 🔥 FIXED: We now pull 'members' from req.body to match your frontend!
+    const { teamName, members = [] } = req.body; 
     const userId = req.user._id;
 
-    
-    // 1. Search the database for all provided emails
-    const foundUsers = await User.find({ email: { $in: memberEmails } });
+    // 1. Search the database for all provided emails using the 'members' array
+    const foundUsers = await User.find({ email: { $in: members } });
     
     // 2. Extract the emails that were actually found in the DB
     const foundEmails = foundUsers.map(user => user.email);
     
     // 3. Find which emails are missing (provided by user, but not in DB)
-    const missingEmails = memberEmails.filter(email => !foundEmails.includes(email));
+    const missingEmails = members.filter(email => !foundEmails.includes(email));
 
     // 4. If any emails are missing, block the team creation
     if (missingEmails.length > 0) {
@@ -148,7 +239,6 @@ export const joinContestTeam = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
-
 
 // ==========================================
 // 4. GET ALL PARTICIPANTS FOR A CONTEST
