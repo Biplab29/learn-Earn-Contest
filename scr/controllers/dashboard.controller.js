@@ -62,7 +62,6 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Submission.countDocuments({ status: "pending" }),
   ]);
 
-  const approvedSubmissions = totalSubmissions - pendingApprovals;
 
   return res.status(200).json({
     success: true,
@@ -83,8 +82,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       totalUsers,
       submissions: {
         total: totalSubmissions,
-        pending: pendingApprovals,
-        approved: approvedSubmissions,
+        pending: pendingApprovals
       },
     },
   });
