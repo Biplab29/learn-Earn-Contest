@@ -4,58 +4,88 @@ import { User } from "../models/user.model.js";
 import { Submission } from "../models/submission.model.js";
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
+  const now = new Date();
 
   const [
     activeContestsCount,
     activeContestsList,
+    completedContestsCount,
+    completedContestsList,
+    upcomingContestsCount,
+    upcomingContestsList,
     totalUsers,
     totalSubmissions,
     pendingApprovals,
-    completedContestsCount,
-    completedContestsList
   ] = await Promise.all([
+    // ✅ Active contests
+    Contest.countDocuments({
+      startDate: { $lte: now },
+      deadline: { $gt: now },
+    }),
 
-    // ✅ Count
-    Contest.countDocuments({ status: "active" }),
+    Contest.find({
+      startDate: { $lte: now },
+      deadline: { $gt: now },
+    })
+      .select("title description startDate deadline rewards image status")
+      .sort({ deadline: 1 }),
 
-    // ✅ Active Contest Details
-    Contest.find({ status: "active" })
-      .select("title startDate endDate prize status")
-      .sort({ createdAt: -1 }),
+    // ✅ Completed contests
+    Contest.countDocuments({
+      deadline: { $lte: now },
+    }),
 
-    // Users
+    Contest.find({
+      deadline: { $lte: now },
+    })
+      .select("title description startDate deadline rewards image status")
+      .sort({ deadline: -1 }),
+
+    // ✅ Upcoming contests
+    Contest.countDocuments({
+      startDate: { $gt: now },
+    }),
+
+    Contest.find({
+      startDate: { $gt: now },
+    })
+      .select("title description startDate deadline rewards image status")
+      .sort({ startDate: 1 }),
+
+    // ✅ Users
     User.countDocuments(),
 
-    // Submissions
+    // ✅ Total submissions
     Submission.countDocuments(),
 
-    // Pending
+    // ✅ Pending approvals
     Submission.countDocuments({ status: "pending" }),
-
-    // Completed Count
-    Contest.countDocuments({ status: "completed" }),
-
-    // Completed Contest Details
-    Contest.find({ status: "completed" })
-      .select("title startDate endDate prize status")
-      .sort({ createdAt: -1 })
-
   ]);
 
-  res.status(200).json({
+  const approvedSubmissions = totalSubmissions - pendingApprovals;
+
+  return res.status(200).json({
     success: true,
+    message: "Dashboard stats fetched successfully",
     data: {
       activeContests: {
         count: activeContestsCount,
-        list: activeContestsList
+        list: activeContestsList,
       },
       completedContests: {
         count: completedContestsCount,
-        list: completedContestsList
+        list: completedContestsList,
+      },
+      upcomingContests: {
+        count: upcomingContestsCount,
+        list: upcomingContestsList,
       },
       totalUsers,
-      totalSubmissions,
-      pendingApprovals
-    }
+      submissions: {
+        total: totalSubmissions,
+        pending: pendingApprovals,
+        approved: approvedSubmissions,
+      },
+    },
   });
 });
