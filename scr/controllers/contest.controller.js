@@ -80,8 +80,7 @@ export const createContest = asyncHandler(async (req, res) => {
     title, 
     description, 
     startDate, 
-    deadline, 
-    rewards, 
+    deadline,  
     participationType, 
     maxTeamSize,
     prize 
@@ -145,7 +144,6 @@ export const createContest = asyncHandler(async (req, res) => {
     description: description.trim(),
     startDate: parsedStartDate,
     deadline: parsedDeadline,
-    rewards,
     prize, 
     image,
     participationType: type,

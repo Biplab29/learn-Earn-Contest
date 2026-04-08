@@ -67,9 +67,9 @@ const contestSchema = new mongoose.Schema(
       type: Date,
       required: true
     },
-    rewards: [{
-      type: String
-    }],
+    // rewards: [{
+    //   type: String
+    // }],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
