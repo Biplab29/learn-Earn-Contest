@@ -89,7 +89,11 @@ const contestSchema = new mongoose.Schema(
     maxTeamSize: {
       type: Number,
       default: 1
-    }
+    },
+    prize: {
+    type: String, 
+    required: true
+},
   },
   { timestamps: true }
 );

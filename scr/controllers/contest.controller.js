@@ -73,16 +73,18 @@ const isValidDate = (date) => {
 //     contest,
 //   });
 // });
+
 export const createContest = asyncHandler(async (req, res) => {
-  // 1. Extract the new fields from req.body
+  // 1. Extract the new fields from req.body, including 'prize'
   const { 
     title, 
-    description,
+    description, 
     startDate, 
     deadline, 
     rewards, 
     participationType, 
-    maxTeamSize       
+    maxTeamSize,
+    prize 
   } = req.body;
   
   const image = req.file?.path || "";
@@ -91,10 +93,10 @@ export const createContest = asyncHandler(async (req, res) => {
   console.log("USER =>", req.user);
   console.log("FILE =>", req.file);
 
-  // 2. Validate standard required fields
-  if (!title || !description || !startDate || !deadline) {
+  // 2. Validate standard required fields (Added prize here)
+  if (!title || !description || !startDate || !deadline || !prize) {
     return res.status(400).json({
-      message: "Title, description, startDate and deadline are required",
+      message: "Title, description, startDate, deadline, and prize are required",
     });
   }
 
@@ -105,7 +107,6 @@ export const createContest = asyncHandler(async (req, res) => {
   }
 
   // 3. Validate Participation Type logic
-  // Default to 'solo' if they don't provide a type, or enforce that they MUST provide one.
   const type = participationType || 'solo'; 
 
   if (!['solo', 'team'].includes(type)) {
@@ -114,7 +115,6 @@ export const createContest = asyncHandler(async (req, res) => {
     });
   }
 
-  // If it's a team contest, ensure they provided a valid team size limit
   if (type === 'team') {
     if (!maxTeamSize || Number(maxTeamSize) < 2) {
       return res.status(400).json({
@@ -146,9 +146,10 @@ export const createContest = asyncHandler(async (req, res) => {
     startDate: parsedStartDate,
     deadline: parsedDeadline,
     rewards,
+    prize, 
     image,
     participationType: type,
-    maxTeamSize: type === 'team' ? Number(maxTeamSize) : 1, // Solo means size is 1
+    maxTeamSize: type === 'team' ? Number(maxTeamSize) : 1,
     status: getStatus(parsedStartDate, parsedDeadline),
     createdBy: req.user._id,
   });
