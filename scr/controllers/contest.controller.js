@@ -83,7 +83,7 @@ export const createContest = asyncHandler(async (req, res) => {
     deadline,  
     participationType, 
     maxTeamSize,
-    prize 
+   rewards
   } = req.body;
   
   const image = req.file?.path || "";
@@ -93,9 +93,9 @@ export const createContest = asyncHandler(async (req, res) => {
   console.log("FILE =>", req.file);
 
   // 2. Validate standard required fields (Added prize here)
-  if (!title || !description || !startDate || !deadline || !prize) {
+  if (!title || !description || !startDate || !deadline || !rewards) {
     return res.status(400).json({
-      message: "Title, description, startDate, deadline, and prize are required",
+      message: "Title, description, startDate, deadline, and rewards are required",
     });
   }
 
@@ -144,7 +144,7 @@ export const createContest = asyncHandler(async (req, res) => {
     description: description.trim(),
     startDate: parsedStartDate,
     deadline: parsedDeadline,
-    prize, 
+    rewards, 
     image,
     participationType: type,
     maxTeamSize: type === 'team' ? Number(maxTeamSize) : 1,
