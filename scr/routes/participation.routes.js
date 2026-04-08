@@ -3,7 +3,8 @@ import {
   joinContestSolo,
   joinContestTeam,
   getMyParticipations,
-  getContestParticipants
+  getContestParticipants,
+  getStudentContestHistory
 } from "../controllers/participation.controller.js";
 
 import { verifyJWT } from "../middleware/checkAuthUser.js";
@@ -21,6 +22,8 @@ participationRouter.post("/contest/:contestId/join/solo", verifyJWT, joinContest
 // create a team and join contest
 participationRouter.post("/contest/:contestId/join/team", verifyJWT, joinContestTeam);
 
+// GET a student's complete contest and submission history
+participationRouter.get("/my-history", verifyJWT, getStudentContestHistory);
 
 // ================= PUBLIC =================
 
