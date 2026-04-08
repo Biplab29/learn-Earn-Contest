@@ -90,10 +90,10 @@ const contestSchema = new mongoose.Schema(
       type: Number,
       default: 1
     },
-    rewards: {
+    rewards: [{
     type: String, 
     required: true
-},
+}],
   },
   { timestamps: true }
 );
