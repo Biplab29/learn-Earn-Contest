@@ -21,14 +21,77 @@ const isValidDate = (date) => {
 // ===============================
 
 
+// export const createContest = asyncHandler(async (req, res) => {
+//   const { title, description, startDate, deadline, rewards } = req.body;
+//   const image = req.file?.path || "";
+
+//   console.log("BODY =>", req.body);
+//   console.log("USER =>", req.user);
+//   console.log("FILE =>", req.file);
+
+//   if (!title || !description || !startDate || !deadline) {
+//     return res.status(400).json({
+//       message: "Title, description, startDate and deadline are required",
+//     });
+//   }
+
+//   if (!req.user || !req.user._id) {
+//     return res.status(401).json({
+//       message: "Unauthorized user",
+//     });
+//   }
+
+//   const parsedStartDate = new Date(startDate);
+//   const parsedDeadline = new Date(deadline);
+
+//   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
+//     return res.status(400).json({
+//       message: "Invalid startDate or deadline format",
+//     });
+//   }
+
+//   if (parsedStartDate >= parsedDeadline) {
+//     return res.status(400).json({
+//       message: "Deadline must be greater than startDate",
+//     });
+//   }
+
+//   const contest = await Contest.create({
+//     title: title.trim(),
+//     description: description.trim(),
+//     startDate: parsedStartDate,
+//     deadline: parsedDeadline,
+//     rewards,
+//     image,
+//     status: getStatus(parsedStartDate, parsedDeadline),
+//     createdBy: req.user._id,
+//   });
+
+//   return res.status(201).json({
+//     success: true,
+//     message: "Contest created successfully",
+//     contest,
+//   });
+// });
 export const createContest = asyncHandler(async (req, res) => {
-  const { title, description, startDate, deadline, rewards } = req.body;
+  // 1. Extract the new fields from req.body
+  const { 
+    title, 
+    description,
+    startDate, 
+    deadline, 
+    rewards, 
+    participationType, 
+    maxTeamSize       
+  } = req.body;
+  
   const image = req.file?.path || "";
 
   console.log("BODY =>", req.body);
   console.log("USER =>", req.user);
   console.log("FILE =>", req.file);
 
+  // 2. Validate standard required fields
   if (!title || !description || !startDate || !deadline) {
     return res.status(400).json({
       message: "Title, description, startDate and deadline are required",
@@ -41,6 +104,26 @@ export const createContest = asyncHandler(async (req, res) => {
     });
   }
 
+  // 3. Validate Participation Type logic
+  // Default to 'solo' if they don't provide a type, or enforce that they MUST provide one.
+  const type = participationType || 'solo'; 
+
+  if (!['solo', 'team'].includes(type)) {
+    return res.status(400).json({
+      message: "participationType must be either 'solo' or 'team'",
+    });
+  }
+
+  // If it's a team contest, ensure they provided a valid team size limit
+  if (type === 'team') {
+    if (!maxTeamSize || Number(maxTeamSize) < 2) {
+      return res.status(400).json({
+        message: "Team contests require a maxTeamSize of at least 2",
+      });
+    }
+  }
+
+  // 4. Validate Dates
   const parsedStartDate = new Date(startDate);
   const parsedDeadline = new Date(deadline);
 
@@ -56,6 +139,7 @@ export const createContest = asyncHandler(async (req, res) => {
     });
   }
 
+  // 5. Create the contest with the new data
   const contest = await Contest.create({
     title: title.trim(),
     description: description.trim(),
@@ -63,6 +147,8 @@ export const createContest = asyncHandler(async (req, res) => {
     deadline: parsedDeadline,
     rewards,
     image,
+    participationType: type,
+    maxTeamSize: type === 'team' ? Number(maxTeamSize) : 1, // Solo means size is 1
     status: getStatus(parsedStartDate, parsedDeadline),
     createdBy: req.user._id,
   });
@@ -234,9 +320,9 @@ export const getActiveContests = asyncHandler(async (req, res) => {
     contests: updatedContests,
   });
 });
-// ===============================
+
 // GET UPCOMING CONTESTS
-// ===============================
+
 export const getUpcomingContests = asyncHandler(async (req, res) => {
   const now = new Date();
 
