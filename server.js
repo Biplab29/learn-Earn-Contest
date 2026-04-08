@@ -25,7 +25,7 @@ app.use(cors({
     "http://localhost:5173",
     "https://learnandearnweb.netlify.app"
   ], 
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true
 
 }));

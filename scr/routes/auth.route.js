@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllUsers, getSingleUser, loginUser, logoutUser, registerUser } from '../controllers/auth.controller.js';
+import { deleteUser, getAllUsers, getSingleUser, loginUser, logoutUser, registerUser } from '../controllers/auth.controller.js';
 import { authorizeRoles, verifyJWT } from '../middleware/checkAuthUser.js';
 import { userValidationRules, validate } from '../middleware/userValidator.js';
 import { forgotPassword } from '../controllers/forgotPassword.controller.js';
@@ -15,6 +15,7 @@ userRouter.get("/users", verifyJWT, getAllUsers);
 userRouter.post("/user/logout", verifyJWT, logoutUser);
 userRouter.post("/forgot-password", verifyJWT, forgotPassword);
 userRouter.post("/reset-password/:token", verifyJWT, resetPassword);
+userRouter.delete("/delete/user/:id", verifyJWT, authorizeRoles("admin"), deleteUser);
 
 export default userRouter;
 

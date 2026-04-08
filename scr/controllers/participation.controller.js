@@ -281,26 +281,22 @@ export const getMyParticipations = asyncHandler(async (req, res) => {
   });
 });
 
-// ==========================================
+
 // GET SINGLE STUDENT CONTEST HISTORY & SUBMISSIONS
-// ==========================================
+
 export const getStudentContestHistory = asyncHandler(async (req, res) => {
-  // If a student is checking their own profile, use req.user._id
-  // If an admin is checking a specific student, you might use req.params.studentId instead
+
   const studentId = req.user._id; 
 
-  // 1. Find ALL participations for this specific student
   const participations = await Participation.find({ user: studentId })
-    .populate("contest") // Fetches EVERY detail about the contest
-    .populate("team", "teamName members") // Fetches team details if they joined as a team
-    .sort({ createdAt: -1 }); // Sorts by newest first
+    .populate("contest") 
+    .populate("team", "teamName members") 
+    .sort({ createdAt: -1 });
 
-  // 2. Separate them into logical groups (optional, but helpful for the frontend)
   const totalParticipations = participations.length;
   const completedSubmissions = participations.filter(p => p.status === "submitted").length;
   const pendingContests = totalParticipations - completedSubmissions;
 
-  // 3. Send the full history back
   res.status(200).json({
     message: "Student contest history and submissions retrieved",
     summary: {

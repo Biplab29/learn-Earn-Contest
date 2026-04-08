@@ -182,6 +182,34 @@ export const getAllUsers = asyncHandler(async(req,res)=>{
     });     
 });
 
+
+// ==========================================
+// DELETE USER (ADMIN ONLY)
+// ==========================================
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // 1. Find the user first to ensure they exist
+  const user = await User.findById(id);
+  
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  // Optional: Prevent admins from deleting themselves accidentally
+  if (req.user._id.toString() === id) {
+    return res.status(400).json({ message: "You cannot delete your own admin account" });
+  }
+
+  // 2. Delete the user
+  await User.findByIdAndDelete(id);
+
+  // 3. Send success response
+  res.status(200).json({
+    message: "User deleted successfully"
+  });
+});
+
 console.log("auth controller is working");
 
 
