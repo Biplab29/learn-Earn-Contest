@@ -648,7 +648,7 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
     {
       $unwind: "$contest",
     },
-    {
+    {   
       $project: {
         _id: 0,
         contestId: "$contest._id",

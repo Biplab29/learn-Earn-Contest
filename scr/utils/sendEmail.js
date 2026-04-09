@@ -12,9 +12,11 @@ export const sendEmail = async (to, subject, html) => {
   });
 
   await transporter.sendMail({
-    from: `"Support" <${process.env.EMAIL_USER}>`,
+    from: `"User Reset Password" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
   });
 };
+
+console.log("email controller is working");

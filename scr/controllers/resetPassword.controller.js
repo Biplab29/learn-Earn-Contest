@@ -1,3 +1,5 @@
+
+import crypto from "crypto";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { User } from "../models/user.model.js";
 
@@ -5,7 +7,12 @@ export const resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
 
-  // Hash token
+  if (!password) {
+    return res.status(400).json({
+      message: "Password is required",
+    });
+  }
+
   const hashedToken = crypto
     .createHash("sha256")
     .update(token)
@@ -22,10 +29,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     });
   }
 
-  // Set new password
   user.password = password;
-
-  // Clear fields
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
 
@@ -36,4 +40,4 @@ export const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
-console.log("reset password controller is working")
+console.log("reset password controller is working");

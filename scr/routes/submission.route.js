@@ -108,9 +108,7 @@ submissionRouter.get(
 );
 
 
-// ============================================
-// 🔴 ADMIN ROUTES
-// ============================================
+// ADMIN ROUTES
 
 // ✅ Evaluate submission
 submissionRouter.put(
@@ -136,7 +134,7 @@ submissionRouter.get(
   getTotalSubmittedContests
 );
 
-// ✅ Contest-wise summary (count only)
+// ✅ Contest summary count only
 submissionRouter.get(
   "/contest-summary",
   verifyJWT,
