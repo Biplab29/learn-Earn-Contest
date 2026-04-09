@@ -23,6 +23,10 @@ export const joinContestSolo = async (req, res) => {
       return res.status(400).json({ message: "Contest deadline has passed." });
     }
 
+    if (contest.participationType === 'team') {
+      return res.status(400).json({ message: "This is a team contest. You must join by creating a team." });
+    }
+
     // 2. Check if user is already participating (Solo OR Team)
     // Thanks to the new schema, we only need to check one collection!
     const existingParticipation = await Participation.findOne({ 
@@ -178,20 +182,24 @@ export const joinContestTeam = async (req, res) => {
 
     // ==========================================
 
-    // Combine the creator's ID with the invited members and remove duplicates
-    const allMembers = [...new Set([...memberIds, userId.toString()])];
-
-    // Optional but recommended: Check team size (e.g., max 4 members)
-    if (allMembers.length > 4) {
-      return res.status(400).json({ message: "A team can have a maximum of 4 members." });
-    }
-
     // 1. Check if contest exists and is open
     const contest = await Contest.findById(contestId);
     if (!contest) return res.status(404).json({ message: "Contest not found" });
     
     if (new Date(contest.deadline) < new Date()) {
       return res.status(400).json({ message: "Contest deadline has passed." });
+    }
+
+    if (contest.participationType === 'solo') {
+      return res.status(400).json({ message: "This is a solo contest. You cannot join as a team." });
+    }
+
+    // Combine the creator's ID with the invited members and remove duplicates
+    const allMembers = [...new Set([...memberIds, userId.toString()])];
+
+    // Check team size against contest specification
+    if (allMembers.length > contest.maxTeamSize) {
+      return res.status(400).json({ message: `A team can have a maximum of ${contest.maxTeamSize} members for this contest.` });
     }
 
     // 2. Check if the team name is already taken for THIS contest

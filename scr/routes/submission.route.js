@@ -54,25 +54,25 @@ import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
 const submissionRouter = express.Router();
 
 
-// ============================================
-// 🟢 USER ROUTES (Student / Participant)
-// ============================================
 
-// ✅ Submit project (contest submission)
+// USER ROUTES (Student / Participant)
+
+
+// Submit project (contest submission)
 submissionRouter.post(
   "/submit",
   verifyJWT,
   submitProject
 );
 
-// ✅ Get my submissions
+// Get my submissions
 submissionRouter.get(
   "/my-submissions",
   verifyJWT,
   getMySubmissions
 );
 
-// ✅ How many contests I submitted
+// How many contests I submitted
 submissionRouter.get(
   "/my-contest-count",
   verifyJWT,
@@ -80,9 +80,9 @@ submissionRouter.get(
 );
 
 
-// ============================================
-// 🟡 CONTEST SPECIFIC ROUTES
-// ============================================
+
+//  CONTEST SPECIFIC ROUTES
+
 
 // ✅ Get all submissions for a contest
 submissionRouter.get(
@@ -90,18 +90,17 @@ submissionRouter.get(
   getSubmissionsByContest
 );
 
-// ✅ How many students submitted in one contest
+//  How many students submitted in one contest
 submissionRouter.get(
   "/contest/:contestId/participant-count",
   getContestParticipantCount
 );
 
 
-// ============================================
-// 🔵 GLOBAL STATS (All contests)
-// ============================================
 
-// ✅ Total unique users across all contests
+// (All contests)
+
+//  Total unique users across all contests
 submissionRouter.get(
   "/participant-count",
   getAllContestParticipantCount
@@ -110,7 +109,7 @@ submissionRouter.get(
 
 // ADMIN ROUTES
 
-// ✅ Evaluate submission
+//  Evaluate submission
 submissionRouter.put(
   "/evaluate/:id",
   verifyJWT,
@@ -118,7 +117,7 @@ submissionRouter.put(
   evaluateSubmission
 );
 
-// ✅ Declare winner
+//  Declare winner
 submissionRouter.put(
   "/contest/:contestId/declare-winner",
   verifyJWT,
@@ -126,7 +125,7 @@ submissionRouter.put(
   declareWinner
 );
 
-// ✅ How many contests received submissions
+//  How many contests received submissions
 submissionRouter.get(
   "/submitted-contests-count",
   verifyJWT,

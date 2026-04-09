@@ -221,6 +221,8 @@ export const updateContest = asyncHandler(async (req, res) => {
   const updatedTitle = req.body.title ?? contest.title;
   const updatedDescription = req.body.description ?? contest.description;
   const updatedRewards = req.body.rewards ?? contest.rewards;
+  const updatedParticipationType = req.body.participationType ?? contest.participationType;
+  const updatedMaxTeamSize = req.body.maxTeamSize ?? contest.maxTeamSize;
   const updatedStartDate = req.body.startDate
     ? new Date(req.body.startDate)
     : new Date(contest.startDate);
@@ -243,6 +245,8 @@ export const updateContest = asyncHandler(async (req, res) => {
   contest.title = updatedTitle;
   contest.description = updatedDescription;
   contest.rewards = updatedRewards;
+  contest.participationType = updatedParticipationType;
+  contest.maxTeamSize = updatedMaxTeamSize;
   contest.startDate = updatedStartDate;
   contest.deadline = updatedDeadline;
   contest.status = getStatus(updatedStartDate, updatedDeadline);
