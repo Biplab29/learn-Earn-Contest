@@ -21,6 +21,11 @@ const teamSchema = new mongoose.Schema({
   contest: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Contest"
+  },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending"
   }
 }, { timestamps: true });
 

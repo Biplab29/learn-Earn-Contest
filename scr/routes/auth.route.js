@@ -19,5 +19,5 @@ userRouter.post("/reset-password/:token", resetPassword);
 userRouter.delete("/delete/user/:id", verifyJWT, authorizeRoles("admin"), deleteUser);
 
 export default userRouter;
-   
+
 console.log("auth route is working");

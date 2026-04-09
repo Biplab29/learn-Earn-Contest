@@ -291,6 +291,10 @@ import asyncHandler from "../middleware/asyncHandler.js";
 import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
 import { Participation } from "../models/participation.model.js"; // <-- NEW IMPORT
+import { Invitation } from "../models/invitation.model.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import crypto from "crypto";
+
 
 // ==========================================
 // CREATE TEAM
@@ -443,6 +447,165 @@ export const deleteTeam = asyncHandler(async (req, res) => {
   await team.deleteOne();
 
   res.status(200).json({ message: "Team deleted successfully" });
+});
+
+// ==========================================
+// UPDATE TEAM STATUS (ADMIN ONLY)
+// ==========================================
+export const updateTeamStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  const validStatuses = ["pending", "approved", "rejected"];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ message: "Invalid status" });
+  }
+
+  const team = await Team.findById(req.params.id);
+  if (!team) return res.status(404).json({ message: "Team not found" });
+
+  team.status = status;
+  await team.save();
+
+  res.status(200).json({ message: `Team status updated to ${status}`, team });
+});
+
+// ==========================================
+// INVITE MEMBER VIA EMAIL
+// ==========================================
+export const inviteMember = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  const team = await Team.findById(req.params.id);
+  if (!team) return res.status(404).json({ message: "Team not found" });
+
+  const isMember = team.members.some(
+    m => m.toString() === req.user._id.toString()
+  );
+
+  if (!isMember) {
+    return res.status(403).json({ message: "Only team members can invite users" });
+  }
+
+  if (team.members.length >= 4) {
+    return res.status(400).json({ message: "Team is full" });
+  }
+
+  // Generate an invitation token
+  const inviteToken = crypto.randomBytes(20).toString("hex");
+  
+  // Create an invitation record
+  const invitation = await Invitation.create({
+    email,
+    team: team._id,
+    token: inviteToken,
+  });
+
+  // Construct joining link (Using backend endpoint)
+  const joinUrl = `${req.protocol}://${req.get("host")}/api/v1/teams/invite/confirm/${inviteToken}`;
+
+  const message = `
+    <h2>You have been invited to join a team!</h2>
+    <p>Team Name: ${team.teamName}</p>
+    <p>Please click on the link below to accept the invitation and join the contest:</p>
+    <a href="${joinUrl}" clicktracking="off">${joinUrl}</a>
+    <p>Important: If you get an error when clicking the link, it might be a POST endpoint. If so, your frontend developer will provide the correct link later.</p>
+  `;
+
+  try {
+    await sendEmail(email, "Team Invitation", message);
+    res.status(200).json({ message: "Invitation sent successfully to " + email });
+  } catch (error) {
+    // If email sending fails, delete the invitation
+    await invitation.deleteOne();
+    return res.status(500).json({ message: "Email could not be sent", error: error.message });
+  }
+});
+
+// ==========================================
+// CONFIRM EMAIL INVITATION
+// ==========================================
+export const confirmInvitation = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  // We find the invitation
+  const invitation = await Invitation.findOne({ token, status: "pending" });
+  
+  if (!invitation) {
+    return res.status(400).json({ message: "Invalid or expired invitation token" });
+  }
+
+  // The user claiming the invite must be logged in and their email must match
+  if (req.user.email !== invitation.email) {
+    return res.status(403).json({ message: "This invitation is not for your email address" });
+  }
+
+  const team = await Team.findById(invitation.team);
+  if (!team) {
+    return res.status(404).json({ message: "Team no longer exists" });
+  }
+
+  if (team.members.length >= 4) {
+    return res.status(400).json({ message: "Team is already full" });
+  }
+
+  // Check if user is already participating
+  const alreadyParticipating = await Participation.findOne({
+    contest: team.contest,
+    user: req.user._id
+  });
+
+  if (alreadyParticipating) {
+    return res.status(400).json({ message: "You are already participating in this contest." });
+  }
+
+  const userId = req.user._id;
+
+  if (team.members.includes(userId)) {
+    return res.status(400).json({ message: "You are already in the team" });
+  }
+
+  // Add user to team
+  team.members.push(userId);
+  await team.save();
+
+  // Create Participation record
+  await Participation.create({
+    user: userId,
+    contest: team.contest,
+    participationType: "team",
+    team: team._id
+  });
+
+  // Mark invitation as accepted
+  invitation.status = "accepted";
+  await invitation.save();
+
+  res.status(200).json({ message: "Invitation accepted. You are now a member of the team.", team });
+});
+
+// ==========================================
+// GET MY PENDING INVITATIONS
+// ==========================================
+export const getMyInvitations = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user || !user.email) {
+    return res.status(404).json({ message: "User not found or email missing." });
+  }
+
+  const invitations = await Invitation.find({ email: user.email, status: "pending" })
+    .populate({
+      path: "team",
+      select: "teamName contest status",
+      populate: {
+        path: "contest",
+        select: "title"
+      }
+    });
+
+  res.status(200).json({ message: "My pending invitations", invitations });
 });
 
 console.log("Team Controller is working");
