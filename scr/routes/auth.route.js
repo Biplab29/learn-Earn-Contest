@@ -11,7 +11,7 @@ const userRouter = express.Router();
 userRouter.post("/register",  userValidationRules, validate, registerUser);
 userRouter.post("/login", loginUser);
 userRouter.get("/user/:id", verifyJWT, getSingleUser);
-userRouter.put("/user/:id", verifyJWT, authorizeRoles("admin"),updateUser)
+userRouter.put("/user/update/:id", verifyJWT, authorizeRoles("admin"),updateUser)
 userRouter.get("/users", verifyJWT, getAllUsers);
 userRouter.post("/user/logout", verifyJWT, logoutUser);
 userRouter.post("/forgot-password", forgotPassword);
