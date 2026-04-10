@@ -1,40 +1,3 @@
-// import express from "express";
-// import {
-//   teamCreate,
-//   addMember,
-//   getMyTeams,
-//   getTeamsByContest,
-//   deleteTeam
-// } from "../controllers/team.controller.js";
-
-// import { verifyJWT } from "../middleware/checkAuthUser.js";
-
-// const teamRouter = express.Router();
-
-
-// // ================= PROTECTED =================
-
-// // create team
-// teamRouter.post("/", verifyJWT, teamCreate);
-
-// // my teams (specific route first)
-// teamRouter.get("/my-teams", verifyJWT, getMyTeams);
-
-// // add member
-// teamRouter.patch("/:id/members", verifyJWT, addMember);
-
-// // delete team
-// teamRouter.delete("/:id", verifyJWT, deleteTeam);
-
-
-// // ================= PUBLIC =================
-
-// // teams by contest 
-
-// teamRouter.get("/contest/:contestId", getTeamsByContest);
-
-
-// export default teamRouter;
 
 import express from "express";
 import {
@@ -53,40 +16,38 @@ import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
 
 const teamRouter = express.Router();
 
-// ================= PROTECTED =================
+// =================== STATIC ROUTES FIRST (must be before /:id) ===================
 
 // create team
 teamRouter.post("/", verifyJWT, teamCreate);
 
-// my teams (specific route first to avoid :id conflicts!)
+// ✅ STATIC: get my teams
 teamRouter.get("/my-teams", verifyJWT, getMyTeams);
 
-// add member (direct add)
+// ✅ STATIC: get my pending invitations
+teamRouter.get("/my-invitations", verifyJWT, getMyInvitations);
+
+// confirm invitation via token (user must be logged in)
+teamRouter.post("/invite/confirm/:token", verifyJWT, confirmInvitation);
+
+// PUBLIC STATIC: teams by contest
+teamRouter.get("/contest/:contestId", getTeamsByContest);
+
+// =================== DYNAMIC /:id ROUTES (after all static routes) ===================
+
+// invite member via email
+teamRouter.post("/:id/invite", verifyJWT, inviteMember);
+
+// add member (direct add by ID)
 teamRouter.patch("/:id/members", verifyJWT, addMember);
 
 // delete team
 teamRouter.delete("/:id", verifyJWT, deleteTeam);
 
-// ================= INVITATIONS =================
-
-// invite member via email
-teamRouter.post("/:id/invite", verifyJWT, inviteMember);
-
-// confirm invitation
-teamRouter.post("/invite/confirm/:token", verifyJWT, confirmInvitation);
-
-// get my invitations
-teamRouter.get("/my-invitations", verifyJWT, getMyInvitations);
-
-// ================= ADMIN =================
+// =================== ADMIN ===================
 
 // update team status (approve/reject)
 teamRouter.patch("/:id/status", verifyJWT, authorizeRoles("admin"), updateTeamStatus);
-
-// ================= PUBLIC =================
-
-// teams by contest 
-teamRouter.get("/contest/:contestId", getTeamsByContest);
 
 export default teamRouter;
 

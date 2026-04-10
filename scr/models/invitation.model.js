@@ -12,8 +12,17 @@ const invitationSchema = new mongoose.Schema({
     ref: "Team",
     required: true,
   },
+  invitedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
   token: {
     type: String,
+    required: true,
+  },
+  tokenExpiry: {
+    type: Date,
     required: true,
   },
   status: {
@@ -22,6 +31,9 @@ const invitationSchema = new mongoose.Schema({
     default: "pending",
   },
 }, { timestamps: true });
+
+// MongoDB will delete the document 48h after tokenExpiry
+invitationSchema.index({ tokenExpiry: 1 }, { expireAfterSeconds: 0 });
 
 export const Invitation = mongoose.model("Invitation", invitationSchema);
 
