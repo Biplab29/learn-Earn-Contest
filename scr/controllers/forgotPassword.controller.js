@@ -30,7 +30,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+  const resetUrl = `https://learnandearnweb.netlify.app/reset-password/${resetToken}`;
 
   // const message = `
   //   <h2>Password Reset</h2>
