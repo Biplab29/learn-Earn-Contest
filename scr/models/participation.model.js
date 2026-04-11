@@ -28,8 +28,11 @@ const participationSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["joined", "submitted"],
-      default: "joined"
+      default: undefined,
+      validate: {
+        validator: (value) => value == null || value === "submitted",
+        message: "Participation status can only be 'submitted' when present."
+      }
     }
   },
 

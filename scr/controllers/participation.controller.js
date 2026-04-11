@@ -316,6 +316,10 @@ export const getStudentContestHistory = asyncHandler(async (req, res) => {
   const totalParticipations = participations.length;
   const completedSubmissions = participations.filter(p => p.status === "submitted").length;
   const pendingContests = totalParticipations - completedSubmissions;
+  const history = participations.map((participation) => ({
+    ...participation.toObject(),
+    status: participation.status || "pending"
+  }));
 
   res.status(200).json({
     message: "Student contest history and submissions retrieved",
@@ -325,7 +329,7 @@ export const getStudentContestHistory = asyncHandler(async (req, res) => {
       totalPending: pendingContests
     },
     // This array contains every single detail the frontend needs
-    history: participations 
+    history
   });
 });
 
