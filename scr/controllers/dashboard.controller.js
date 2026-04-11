@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { Submission } from "../models/submission.model.js";
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
-  const now = new Date();
+  await Contest.syncStatuses();
 
   const [
     activeContestsCount,
@@ -19,35 +19,33 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   ] = await Promise.all([
     // ✅ Active contests
     Contest.countDocuments({
-      startDate: { $lte: now },
-      deadline: { $gt: now },
+      status: "active",
     }),
 
     Contest.find({
-      startDate: { $lte: now },
-      deadline: { $gt: now },
+      status: "active",
     })
       .select("title description startDate deadline rewards image status")
       .sort({ deadline: 1 }),
 
     // ✅ Completed contests
     Contest.countDocuments({
-      deadline: { $lte: now },
+      status: "completed",
     }),
 
     Contest.find({
-      deadline: { $lte: now },
+      status: "completed",
     })
       .select("title description startDate deadline rewards image status")
       .sort({ deadline: -1 }),
 
     // ✅ Upcoming contests
     Contest.countDocuments({
-      startDate: { $gt: now },
+      status: "upcoming",
     }),
 
     Contest.find({
-      startDate: { $gt: now },
+      status: "upcoming",
     })
       .select("title description startDate deadline rewards image status")
       .sort({ startDate: 1 }),

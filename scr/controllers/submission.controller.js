@@ -276,16 +276,13 @@
 import mongoose from "mongoose";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Submission } from "../models/submission.model.js";
-import { Contest } from "../models/contest.model.js";
+import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js";
 
 // helper
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-const isContestActive = (contest) => {
-  const now = new Date();
-  return new Date(contest.startDate) <= now && new Date(contest.deadline) > now;
-};
+const isContestActive = (contest) => getContestStatus(contest) === "active";
 
 // ================================
 // Submit Project
@@ -520,6 +517,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
     });
   }
 
+  contest.isClosed = true;
   contest.status = "completed";
   await contest.save();
 
@@ -587,6 +585,8 @@ export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
 // 4) Total contests that received at least one submission
 // ================================
 export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
+  await Contest.syncStatuses();
+
   const submittedContestIds = await Submission.distinct("contest");
 
   const contests = await Contest.find({
@@ -644,6 +644,8 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
 // 5) Every contest summary: how many submissions each contest has
 // ================================
 export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
+  await Contest.syncStatuses();
+
   const summary = await Submission.aggregate([
     {
       $group: {
@@ -696,12 +698,14 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
   const { contestId } = req.params;
 
   // validate id
-  if (!contestId) {
+  if (!contestId || !isValidObjectId(contestId)) {
     return res.status(400).json({
       success: false,
-      message: "Contest ID is required",
+      message: "Valid contest ID is required",
     });
   }
+
+  await Contest.syncStatuses({ _id: contestId });
 
   // find contest
   const contest = await Contest.findById(contestId)

@@ -1,7 +1,7 @@
 
 
 import asyncHandler from "../middleware/asyncHandler.js";
-import { Contest } from "../models/contest.model.js";
+import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js";
 import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
@@ -19,7 +19,7 @@ export const joinContestSolo = async (req, res) => {
     const contest = await Contest.findById(contestId);
     if (!contest) return res.status(404).json({ message: "Contest not found" });
     
-    if (new Date(contest.deadline) < new Date()) {
+    if (getContestStatus(contest) === "completed") {
       return res.status(400).json({ message: "Contest deadline has passed." });
     }
 
@@ -194,7 +194,7 @@ export const joinContestTeam = async (req, res) => {
     const contest = await Contest.findById(contestId);
     if (!contest) return res.status(404).json({ message: "Contest not found" });
     
-    if (new Date(contest.deadline) < new Date()) {
+    if (getContestStatus(contest) === "completed") {
       return res.status(400).json({ message: "Contest deadline has passed." });
     }
 

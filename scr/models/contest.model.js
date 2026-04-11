@@ -49,6 +49,15 @@
 
 import mongoose from "mongoose";
 
+export const getContestStatus = ({ startDate, deadline, isClosed = false }) => {
+  const now = new Date();
+
+  if (isClosed) return "completed";
+  if (new Date(startDate) <= now && new Date(deadline) > now) return "active";
+  if (new Date(deadline) <= now) return "completed";
+  return "upcoming";
+};
+
 const contestSchema = new mongoose.Schema(
   {
     title: {
@@ -87,6 +96,11 @@ const contestSchema = new mongoose.Schema(
       default: "upcoming"  
     },
 
+    isClosed: {
+      type: Boolean,
+      default: false
+    },
+
     participationType: {
       type: String,
       enum: ['solo', 'team'],
@@ -114,6 +128,8 @@ contestSchema.pre("validate", function () {
   if (this.participationType === "solo") {
     this.maxTeamSize = 1;
   }
+
+  this.status = getContestStatus(this);
 });
 
 contestSchema.path("maxTeamSize").validate(function (value) {
@@ -123,6 +139,40 @@ contestSchema.path("maxTeamSize").validate(function (value) {
 
   return value === 1;
 }, "Team contests must allow at least 2 members, and solo contests must have a maxTeamSize of 1.");
+
+contestSchema.methods.syncStatus = function () {
+  this.status = getContestStatus(this);
+  return this.status;
+};
+
+contestSchema.statics.syncStatuses = async function (filter = {}) {
+  const contests = await this.find(filter).select("_id startDate deadline isClosed status");
+
+  const operations = contests
+    .map((contest) => {
+      const nextStatus = getContestStatus(contest);
+
+      if (contest.status === nextStatus) {
+        return null;
+      }
+
+      return {
+        updateOne: {
+          filter: { _id: contest._id },
+          update: {
+            $set: { status: nextStatus }
+          }
+        }
+      };
+    })
+    .filter(Boolean);
+
+  if (operations.length > 0) {
+    await this.bulkWrite(operations);
+  }
+
+  return operations.length;
+};
 
 export const Contest = mongoose.model("Contest", contestSchema);
 

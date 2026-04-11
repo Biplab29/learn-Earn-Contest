@@ -1,15 +1,6 @@
 
 import asyncHandler from "../middleware/asyncHandler.js";
-import { Contest } from "../models/contest.model.js";
-
-// eta status helper function
-const getStatus = (startDate, deadline) => {
-  const now = new Date();
-
-  if (startDate <= now && deadline > now) return "active";
-  if (deadline <= now) return "completed";
-  return "upcoming";
-};
+import { Contest, getContestStatus } from "../models/contest.model.js";
 
 // helper for valid date
 const isValidDate = (date) => {
@@ -148,7 +139,6 @@ export const createContest = asyncHandler(async (req, res) => {
     image,
     participationType: type,
     maxTeamSize: type === 'team' ? Number(maxTeamSize) : 1,
-    status: getStatus(parsedStartDate, parsedDeadline),
     createdBy: req.user._id,
   });
 
@@ -163,18 +153,15 @@ export const createContest = asyncHandler(async (req, res) => {
 // GET ALL CONTESTS
 // ===============================
 export const getAllContests = asyncHandler(async (req, res) => {
+  await Contest.syncStatuses();
+
   const contests = await Contest.find()
     .populate("createdBy", "name email")
     .sort({ createdAt: -1 });
 
-  const updatedContests = contests.map((contest) => ({
-    ...contest.toObject(),
-    status: getStatus(new Date(contest.startDate), new Date(contest.deadline)),
-  }));
-
   return res.status(200).json({
     success: true,
-    contests: updatedContests,
+    contests,
   });
 });
 
@@ -182,6 +169,8 @@ export const getAllContests = asyncHandler(async (req, res) => {
 // GET SINGLE CONTEST
 // ===============================
 export const getContestById = asyncHandler(async (req, res) => {
+  await Contest.syncStatuses({ _id: req.params.id });
+
   const contest = await Contest.findById(req.params.id).populate(
     "createdBy",
     "name email"
@@ -196,10 +185,7 @@ export const getContestById = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    contest: {
-      ...contest.toObject(),
-      status: getStatus(new Date(contest.startDate), new Date(contest.deadline)),
-    },
+    contest,
   });
 });
 
@@ -267,7 +253,7 @@ export const updateContest = asyncHandler(async (req, res) => {
   contest.maxTeamSize = updatedMaxTeamSize;
   contest.startDate = updatedStartDate;
   contest.deadline = updatedDeadline;
-  contest.status = getStatus(updatedStartDate, updatedDeadline);
+  contest.status = getContestStatus(contest);
 
   if (image) {
     contest.image = image;
@@ -313,42 +299,28 @@ export const deleteContest = asyncHandler(async (req, res) => {
 // ===============================
 
 export const getActiveContests = asyncHandler(async (req, res) => {
-  const now = new Date();
+  await Contest.syncStatuses();
 
   const contests = await Contest.find({
-    startDate: { $lte: now },
-    deadline: { $gt: now },
+    status: "active",
   })
     .populate("createdBy", "name email")
     .sort({ deadline: 1 });
-  const updatedContests = contests.map((contest) => {
-    const start = new Date(contest.startDate);
-    const end = new Date(contest.deadline);
-
-    let status = "upcoming";
-    if (start <= now && end > now) status = "active";
-    if (end <= now) status = "completed";
-
-    return {
-      ...contest.toObject(),
-      status,
-    };
-  });
 
   return res.status(200).json({
     success: true,
     message: "Active contests fetched successfully",
-    contests: updatedContests,
+    contests,
   });
 });
 
 // GET UPCOMING CONTESTS
 
 export const getUpcomingContests = asyncHandler(async (req, res) => {
-  const now = new Date();
+  await Contest.syncStatuses();
 
   const contests = await Contest.find({
-    startDate: { $gt: now },
+    status: "upcoming",
   })
     .populate("createdBy", "name email")
     .sort({ startDate: 1 });
@@ -364,10 +336,10 @@ export const getUpcomingContests = asyncHandler(async (req, res) => {
 // GET COMPLETED CONTESTS
 // ===============================
 export const getCompletedContests = asyncHandler(async (req, res) => {
-  const now = new Date();
+  await Contest.syncStatuses();
 
   const contests = await Contest.find({
-    deadline: { $lte: now },
+    status: "completed",
   })
     .populate("createdBy", "name email")
     .sort({ deadline: -1 });

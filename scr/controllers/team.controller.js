@@ -290,7 +290,7 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
-import { Contest } from "../models/contest.model.js";
+import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js"; // <-- NEW IMPORT
 import { Invitation } from "../models/invitation.model.js";
 import { sendEmail } from "../utils/sendEmail.js";
@@ -316,7 +316,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Teams can only be created for team contests" });
   }
 
-  if (new Date(contestDoc.deadline) <= new Date()) {
+  if (getContestStatus(contestDoc) === "completed") {
     return res.status(400).json({ message: "Contest deadline has passed." });
   }
 
@@ -379,7 +379,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
 export const addMember = asyncHandler(async (req, res) => {
   const { userId } = req.body;
 
-  const team = await Team.findById(req.params.id).populate("contest", "maxTeamSize deadline");
+  const team = await Team.findById(req.params.id).populate("contest", "startDate deadline maxTeamSize isClosed");
   if (!team) return res.status(404).json({ message: "Team not found" });
   if (!team.contest) return res.status(404).json({ message: "Contest not found for this team" });
 
@@ -391,7 +391,7 @@ export const addMember = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Only team members can add users" });
   }
 
-  if (new Date(team.contest.deadline) <= new Date()) {
+  if (getContestStatus(team.contest) === "completed") {
     return res.status(400).json({ message: "Contest deadline has passed." });
   }
 
@@ -507,7 +507,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  const team = await Team.findById(req.params.id).populate("contest", "title maxTeamSize deadline");
+  const team = await Team.findById(req.params.id).populate("contest", "title startDate deadline maxTeamSize isClosed");
   if (!team) return res.status(404).json({ message: "Team not found" });
   if (!team.contest) return res.status(404).json({ message: "Contest not found for this team" });
 
@@ -519,7 +519,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Only team members can invite users" });
   }
 
-  if (new Date(team.contest.deadline) <= new Date()) {
+  if (getContestStatus(team.contest) === "completed") {
     return res.status(400).json({ message: "Contest deadline has passed." });
   }
 
@@ -629,7 +629,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "This invitation was not sent to your email address" });
   }
 
-  const team = await Team.findById(invitation.team).populate("contest", "maxTeamSize deadline");
+  const team = await Team.findById(invitation.team).populate("contest", "startDate deadline maxTeamSize isClosed");
   if (!team) {
     return res.status(404).json({ message: "Team no longer exists" });
   }
@@ -637,7 +637,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Contest not found for this team" });
   }
 
-  if (new Date(team.contest.deadline) <= new Date()) {
+  if (getContestStatus(team.contest) === "completed") {
     return res.status(400).json({ message: "Contest deadline has passed." });
   }
 
