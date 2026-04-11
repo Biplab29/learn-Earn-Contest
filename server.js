@@ -9,6 +9,7 @@ import teamRouter from "./scr/routes/teamRoute.js";
 import submissionRouter from "./scr/routes/submission.route.js";
 import dashboardRouter from "./scr/routes/dashboard.routes.js";
 import participationRouter from "./scr/routes/participation.routes.js";
+import notificationRouter from "./scr/routes/notification.routes.js";
 
 
 
@@ -41,6 +42,7 @@ app.use("/api/v1/team", teamRouter);
 app.use("/api/v1/submission", submissionRouter);
 app.use("/api/v1/", dashboardRouter);
 app.use("/api/v1/participations", participationRouter);
+app.use("/api/v1/notifications", notificationRouter);
 
 
 app.get("/", (req, res) => {

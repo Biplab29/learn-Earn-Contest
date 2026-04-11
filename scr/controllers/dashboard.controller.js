@@ -2,6 +2,7 @@ import asyncHandler from "../middleware/asyncHandler.js";
 import { Contest } from "../models/contest.model.js";
 import { User } from "../models/user.model.js";
 import { Submission } from "../models/submission.model.js";
+import { Team } from "../models/team.model.js";
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
   await Contest.syncStatuses();
@@ -16,6 +17,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     totalUsers,
     totalSubmissions,
     pendingApprovals,
+    pendingTeamsCount,
+    recentPendingTeams,
   ] = await Promise.all([
     // ✅ Active contests
     Contest.countDocuments({
@@ -58,6 +61,16 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 
     // ✅ Pending approvals
     Submission.countDocuments({ status: "pending" }),
+
+    // ✅ Pending team approvals
+    Team.countDocuments({ status: "pending" }),
+
+    Team.find({ status: "pending" })
+      .select("teamName status createdAt")
+      .populate("leader", "name email")
+      .populate("contest", "title")
+      .sort({ createdAt: -1 })
+      .limit(10),
   ]);
 
 
@@ -82,6 +95,15 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         total: totalSubmissions,
         pending: pendingApprovals
       },
+      teams: {
+        pendingApproval: pendingTeamsCount,
+        recentPending: recentPendingTeams
+      },
+      approvals: {
+        submissions: pendingApprovals,
+        teams: pendingTeamsCount,
+        total: pendingApprovals + pendingTeamsCount
+      }
     },
   });
 });

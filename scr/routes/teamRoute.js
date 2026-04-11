@@ -7,6 +7,7 @@ import {
   getTeamsByContest,
   deleteTeam,
   updateTeamStatus,
+  getPendingTeams,
   inviteMember,
   confirmInvitation,
   getMyInvitations
@@ -26,6 +27,9 @@ teamRouter.get("/my-teams", verifyJWT, getMyTeams);
 
 // ✅ STATIC: get my pending invitations
 teamRouter.get("/my-invitations", verifyJWT, getMyInvitations);
+
+// ✅ ADMIN: get pending teams for approval
+teamRouter.get("/pending", verifyJWT, authorizeRoles("admin"), getPendingTeams);
 
 // confirm invitation via token (user must be logged in)
 teamRouter.post("/invite/confirm/:token", verifyJWT, confirmInvitation);

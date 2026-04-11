@@ -103,7 +103,7 @@ const contestSchema = new mongoose.Schema(
 
     participationType: {
       type: String,
-      enum: ['solo', 'team'],
+      enum: ['solo', 'team', 'both'],
       default: 'solo',
       required: true
     },
@@ -133,12 +133,12 @@ contestSchema.pre("validate", function () {
 });
 
 contestSchema.path("maxTeamSize").validate(function (value) {
-  if (this.participationType === "team") {
+  if (this.participationType === "team" || this.participationType === "both") {
     return value >= 2;
   }
 
   return value === 1;
-}, "Team contests must allow at least 2 members, and solo contests must have a maxTeamSize of 1.");
+}, "Team or both-mode contests must allow at least 2 members, and solo contests must have a maxTeamSize of 1.");
 
 contestSchema.methods.syncStatus = function () {
   this.status = getContestStatus(this);

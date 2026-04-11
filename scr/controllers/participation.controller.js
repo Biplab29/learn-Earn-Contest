@@ -5,7 +5,66 @@ import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js";
 import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
+import { Invitation } from "../models/invitation.model.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import { notifyAdminsAboutPendingTeam } from "../utils/teamApprovalAlerts.js";
+import crypto from "crypto";
 
+const normalizeInviteEmails = (emails = []) => [
+  ...new Set(
+    (Array.isArray(emails) ? emails : [])
+      .map((email) => email?.toLowerCase().trim())
+      .filter(Boolean)
+  )
+];
+
+const sendTeamInvitation = async ({ email, team, contestTitle, invitedBy }) => {
+  const existingInvite = await Invitation.findOne({
+    email,
+    team: team._id,
+    status: "pending",
+    tokenExpiry: { $gt: new Date() }
+  });
+
+  if (existingInvite) {
+    return { sent: false, reason: "already-invited", email };
+  }
+
+  const inviteToken = crypto.randomBytes(32).toString("hex");
+  const tokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+  const invitation = await Invitation.create({
+    email,
+    team: team._id,
+    invitedBy,
+    token: inviteToken,
+    tokenExpiry,
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const joinUrl = `${frontendUrl}/invite/confirm/${inviteToken}`;
+
+  const message = `
+    <h2>You've been invited to join a team!</h2>
+    <p><strong>Team Name:</strong> ${team.teamName}</p>
+    <p><strong>Contest:</strong> ${contestTitle || "N/A"}</p>
+    <p>Click the button below to accept the invitation. You must be logged in with this email to confirm.</p>
+    <br/>
+    <a href="${joinUrl}" style="background:#4f46e5;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;" clicktracking="off">
+      Accept Invitation
+    </a>
+    <br/><br/>
+    <p style="color:gray;font-size:12px;">If you did not expect this email, you can ignore it.</p>
+  `;
+
+  try {
+    await sendEmail(email, `Invitation to join team "${team.teamName}"`, message);
+    return { sent: true, email };
+  } catch (error) {
+    await invitation.deleteOne();
+    throw error;
+  }
+};
 
 // ==========================================
 // 1. JOIN AS SOLO
@@ -156,39 +215,27 @@ export const joinContestSolo = async (req, res) => {
 export const joinContestTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
-    
-    // 🔥 FIXED: We now pull 'members' from req.body to match your frontend!
-    const { teamName, members = [] } = req.body; 
+    const {
+      teamName,
+      members = [],
+      inviteEmails = [],
+      memberEmails = []
+    } = req.body;
     const userId = req.user._id;
     const normalizedTeamName = teamName?.trim();
-    const normalizedMembers = Array.isArray(members)
-      ? members.map((email) => email.toLowerCase().trim())
-      : [];
+    const requestedInviteEmails =
+      Array.isArray(inviteEmails) && inviteEmails.length > 0
+        ? inviteEmails
+        : Array.isArray(memberEmails) && memberEmails.length > 0
+          ? memberEmails
+          : members;
+    const normalizedMembers = normalizeInviteEmails(requestedInviteEmails).filter(
+      (email) => email !== req.user.email?.toLowerCase()
+    );
 
     if (!normalizedTeamName) {
       return res.status(400).json({ message: "Team name is required." });
     }
-
-    // 1. Search the database for all provided emails using the 'members' array
-    const foundUsers = await User.find({ email: { $in: normalizedMembers } });
-    
-    // 2. Extract the emails that were actually found in the DB
-    const foundEmails = foundUsers.map(user => user.email);
-    
-    // 3. Find which emails are missing (provided by user, but not in DB)
-    const missingEmails = normalizedMembers.filter(email => !foundEmails.includes(email));
-
-    // 4. If any emails are missing, block the team creation
-    if (missingEmails.length > 0) {
-      return res.status(400).json({ 
-        message: `Cannot create team. The following users must register an account first: ${missingEmails.join(", ")}` 
-      });
-    }
-
-    // 5. If all emails exist, extract their ObjectIds
-    const memberIds = foundUsers.map(user => user._id.toString());
-
-    // ==========================================
 
     // 1. Check if contest exists and is open
     const contest = await Contest.findById(contestId);
@@ -202,11 +249,8 @@ export const joinContestTeam = async (req, res) => {
       return res.status(400).json({ message: "This is a solo contest. You cannot join as a team." });
     }
 
-    // Combine the creator's ID with the invited members and remove duplicates
-    const allMembers = [...new Set([...memberIds, userId.toString()])];
-
     // Check team size against contest specification
-    if (allMembers.length > contest.maxTeamSize) {
+    if (normalizedMembers.length + 1 > contest.maxTeamSize) {
       return res.status(400).json({ message: `A team can have a maximum of ${contest.maxTeamSize} members for this contest.` });
     }
 
@@ -219,16 +263,33 @@ export const joinContestTeam = async (req, res) => {
       return res.status(400).json({ message: "This team name is already taken for this contest." });
     }
 
-    // 3. Check if ANY of the members are already participating (Solo or Team)
-    const existingParticipants = await Participation.find({
+    const existingLeaderParticipation = await Participation.findOne({
       contest: contestId,
-      user: { $in: allMembers }
-    }).populate("user", "name"); 
+      user: userId
+    });
 
-    if (existingParticipants.length > 0) {
-      const duplicateNames = existingParticipants.map(p => p.user.name).join(", ");
-      return res.status(400).json({ 
-        message: `Cannot create team. The following users are already participating in this contest: ${duplicateNames}` 
+    if (existingLeaderParticipation) {
+      return res.status(400).json({
+        message: "You are already participating in this contest."
+      });
+    }
+
+    const usersByEmail = await User.find({
+      email: { $in: normalizedMembers }
+    }).select("_id email");
+
+    const participatingUsers = await Participation.find({
+      contest: contestId,
+      user: { $in: usersByEmail.map((user) => user._id) }
+    }).populate("user", "email");
+
+    const blockedEmails = participatingUsers
+      .map((entry) => entry.user?.email?.toLowerCase())
+      .filter(Boolean);
+
+    if (blockedEmails.length > 0) {
+      return res.status(400).json({
+        message: `These users are already participating in this contest: ${blockedEmails.join(", ")}`
       });
     }
 
@@ -236,23 +297,60 @@ export const joinContestTeam = async (req, res) => {
     const newTeam = await Team.create({
       teamName: normalizedTeamName,
       leader: userId,
-      members: allMembers,
+      members: [userId],
       contest: contestId
     });
 
-    // 5. Create a Participation document for EACH member
-    const participationDocs = allMembers.map((memberId) => ({
-      user: memberId,
+    await Participation.create({
+      user: userId,
       contest: contestId,
       participationType: "team",
       team: newTeam._id
-    }));
+    });
 
-    await Participation.insertMany(participationDocs);
+    const inviteResults = [];
+
+    for (const email of normalizedMembers) {
+      try {
+        inviteResults.push(
+          await sendTeamInvitation({
+            email,
+            team: newTeam,
+            contestTitle: contest.title,
+            invitedBy: userId
+          })
+        );
+      } catch (error) {
+        inviteResults.push({
+          sent: false,
+          email,
+          reason: error.message
+        });
+      }
+    }
+
+    let adminNotification = { sent: false, recipients: [] };
+
+    try {
+      adminNotification = await notifyAdminsAboutPendingTeam({
+        team: newTeam,
+        contest,
+        leader: req.user,
+        inviteEmails: normalizedMembers
+      });
+    } catch (error) {
+      adminNotification = {
+        sent: false,
+        recipients: [],
+        error: error.message
+      };
+    }
 
     return res.status(201).json({ 
-      message: "Team created and registered successfully", 
-      team: newTeam 
+      message: "Team created successfully and is pending admin approval",
+      team: newTeam,
+      invitations: inviteResults,
+      adminNotification
     });
 
   } catch (error) {

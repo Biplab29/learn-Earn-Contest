@@ -99,16 +99,16 @@ export const createContest = asyncHandler(async (req, res) => {
   // 3. Validate Participation Type logic
   const type = participationType || 'solo'; 
 
-  if (!['solo', 'team'].includes(type)) {
+  if (!['solo', 'team', 'both'].includes(type)) {
     return res.status(400).json({
-      message: "participationType must be either 'solo' or 'team'",
+      message: "participationType must be 'solo', 'team', or 'both'",
     });
   }
 
-  if (type === 'team') {
+  if (type !== 'solo') {
     if (!maxTeamSize || Number(maxTeamSize) < 2) {
       return res.status(400).json({
-        message: "Team contests require a maxTeamSize of at least 2",
+        message: "Team or both-mode contests require a maxTeamSize of at least 2",
       });
     }
   }
@@ -138,7 +138,7 @@ export const createContest = asyncHandler(async (req, res) => {
     rewards, 
     image,
     participationType: type,
-    maxTeamSize: type === 'team' ? Number(maxTeamSize) : 1,
+    maxTeamSize: type === 'solo' ? 1 : Number(maxTeamSize),
     createdBy: req.user._id,
   });
 
@@ -209,7 +209,7 @@ export const updateContest = asyncHandler(async (req, res) => {
   const updatedRewards = req.body.rewards ?? contest.rewards;
   const updatedParticipationType = req.body.participationType ?? contest.participationType;
   const updatedMaxTeamSize =
-    updatedParticipationType === "team"
+    updatedParticipationType !== "solo"
       ? Number(req.body.maxTeamSize ?? contest.maxTeamSize)
       : 1;
   const updatedStartDate = req.body.startDate
@@ -231,18 +231,18 @@ export const updateContest = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!["solo", "team"].includes(updatedParticipationType)) {
+  if (!["solo", "team", "both"].includes(updatedParticipationType)) {
     return res.status(400).json({
-      message: "participationType must be either 'solo' or 'team'",
+      message: "participationType must be 'solo', 'team', or 'both'",
     });
   }
 
   if (
-    updatedParticipationType === "team" &&
+    updatedParticipationType !== "solo" &&
     (!Number.isInteger(updatedMaxTeamSize) || updatedMaxTeamSize < 2)
   ) {
     return res.status(400).json({
-      message: "Team contests require a maxTeamSize of at least 2",
+      message: "Team or both-mode contests require a maxTeamSize of at least 2",
     });
   }
 

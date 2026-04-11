@@ -36,10 +36,45 @@ const teamSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+teamSchema.pre("validate", function () {
+  const uniqueMembers = [];
+  const seen = new Set();
+
+  for (const member of this.members || []) {
+    const memberId = member?.toString();
+
+    if (!memberId || seen.has(memberId)) {
+      continue;
+    }
+
+    seen.add(memberId);
+    uniqueMembers.push(member);
+  }
+
+  if (this.leader) {
+    const leaderId = this.leader.toString();
+    const hasLeader = uniqueMembers.some(
+      (member) => member.toString() === leaderId
+    );
+
+    if (!hasLeader) {
+      uniqueMembers.push(this.leader);
+    }
+  }
+
+  this.members = uniqueMembers;
+});
+
 teamSchema.path("members").validate(
   (members) => Array.isArray(members) && members.length > 0,
   "At least one team member is required"
 );
+
+teamSchema.path("leader").validate(function (leader) {
+  return (this.members || []).some(
+    (member) => member.toString() === leader?.toString()
+  );
+}, "Team leader must also be present in members.");
 
 teamSchema.index({ contest: 1, teamName: 1 }, { unique: true });
 

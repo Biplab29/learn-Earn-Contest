@@ -284,6 +284,26 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const isContestActive = (contest) => getContestStatus(contest) === "active";
 
+const normalizeScore = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const parsedScore = Number(value);
+
+  if (!Number.isFinite(parsedScore) || parsedScore < 0) {
+    return null;
+  }
+
+  return parsedScore;
+};
+
+const addSubmissionRanks = (submissions) =>
+  submissions.map((submission, index) => ({
+    rank: index + 1,
+    ...submission.toObject(),
+  }));
+
 // ================================
 // Submit Project
 // ================================
@@ -455,18 +475,26 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
     });
   }
 
-  const submission = await Submission.findByIdAndUpdate(
-    id,
-    {
-      totalScore,
-      remarks,
-      status: "evaluated",
-    },
-    { new: true, runValidators: true }
-  )
+  const normalizedScore = normalizeScore(totalScore);
+
+  if (normalizedScore === null) {
+    return res.status(400).json({
+      success: false,
+      message: "A valid totalScore greater than or equal to 0 is required",
+    });
+  }
+
+  if (remarks !== undefined && typeof remarks !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "Remarks must be a string",
+    });
+  }
+
+  const submission = await Submission.findById(id)
     .populate("user", "name email")
     .populate("team", "teamName")
-    .populate("contest", "title");
+    .populate("contest", "title isClosed");
 
   if (!submission) {
     return res.status(404).json({
@@ -474,6 +502,23 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
       message: "Submission not found",
     });
   }
+
+  if (submission.contest?.isClosed) {
+    return res.status(400).json({
+      success: false,
+      message: "Winner has already been declared for this contest",
+    });
+  }
+
+  submission.totalScore = normalizedScore;
+  submission.status = "evaluated";
+
+  if (remarks !== undefined) {
+    submission.remarks = remarks.trim();
+  }
+
+  await submission.save();
+  await submission.populate("contest", "title");
 
   return res.status(200).json({
     success: true,
@@ -504,28 +549,59 @@ export const declareWinner = asyncHandler(async (req, res) => {
     });
   }
 
-  const leaderboard = await Submission.find({ contest: contestId })
+  const submissions = await Submission.find({ contest: contestId })
     .sort({ totalScore: -1, createdAt: 1 })
     .populate("user", "name email")
     .populate("team", "teamName")
     .populate("contest", "title");
 
-  if (leaderboard.length === 0) {
+  if (submissions.length === 0) {
     return res.status(400).json({
       success: false,
       message: "No submissions found to evaluate.",
     });
   }
 
-  contest.isClosed = true;
-  contest.status = "completed";
-  await contest.save();
+  const evaluatedSubmissions = submissions.filter(
+    (submission) => submission.status === "evaluated"
+  );
+
+  if (evaluatedSubmissions.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+    });
+  }
+
+  const pendingSubmissions = submissions.filter(
+    (submission) => submission.status !== "evaluated"
+  );
+
+  if (!contest.isClosed && pendingSubmissions.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Evaluate all submissions before declaring the winner.",
+      pendingSubmissions: pendingSubmissions.length,
+    });
+  }
+
+  const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+  const winnerAlreadyDeclared = contest.isClosed;
+
+  if (!winnerAlreadyDeclared) {
+    contest.isClosed = true;
+    contest.status = "completed";
+    await contest.save();
+  }
 
   return res.status(200).json({
     success: true,
-    message: "Winner declared successfully",
+    message: winnerAlreadyDeclared
+      ? "Winner already declared for this contest"
+      : "Winner declared successfully",
     winner: leaderboard[0],
     leaderboard,
+    totalEvaluatedSubmissions: leaderboard.length,
   });
 });
 
@@ -584,6 +660,7 @@ export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
 // ================================
 // 4) Total contests that received at least one submission
 // ================================
+
 export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
   await Contest.syncStatuses();
 

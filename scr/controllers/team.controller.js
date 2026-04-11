@@ -294,14 +294,70 @@ import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js"; // <-- NEW IMPORT
 import { Invitation } from "../models/invitation.model.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import { notifyAdminsAboutPendingTeam } from "../utils/teamApprovalAlerts.js";
 import crypto from "crypto";
 
+const normalizeInviteEmails = (emails = []) => [
+  ...new Set(
+    (Array.isArray(emails) ? emails : [])
+      .map((email) => email?.toLowerCase().trim())
+      .filter(Boolean)
+  )
+];
+
+const sendTeamInvitation = async ({ email, team, contestTitle, invitedBy }) => {
+  const existingInvite = await Invitation.findOne({
+    email,
+    team: team._id,
+    status: "pending",
+    tokenExpiry: { $gt: new Date() }
+  });
+
+  if (existingInvite) {
+    return { sent: false, reason: "already-invited", email };
+  }
+
+  const inviteToken = crypto.randomBytes(32).toString("hex");
+  const tokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+  const invitation = await Invitation.create({
+    email,
+    team: team._id,
+    invitedBy,
+    token: inviteToken,
+    tokenExpiry,
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const joinUrl = `${frontendUrl}/invite/confirm/${inviteToken}`;
+
+  const message = `
+    <h2>You've been invited to join a team!</h2>
+    <p><strong>Team Name:</strong> ${team.teamName}</p>
+    <p><strong>Contest:</strong> ${contestTitle || "N/A"}</p>
+    <p>Click the button below to accept the invitation. You must be logged in with this email to confirm.</p>
+    <br/>
+    <a href="${joinUrl}" style="background:#4f46e5;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;" clicktracking="off">
+      Accept Invitation
+    </a>
+    <br/><br/>
+    <p style="color:gray;font-size:12px;">If you did not expect this email, you can ignore it.</p>
+  `;
+
+  try {
+    await sendEmail(email, `Invitation to join team "${team.teamName}"`, message);
+    return { sent: true, email };
+  } catch (error) {
+    await invitation.deleteOne();
+    throw error;
+  }
+};
 
 // ==========================================
 // CREATE TEAM
 // ==========================================
 export const teamCreate = asyncHandler(async (req, res) => {
-  const { teamName, members, contest } = req.body;
+  const { teamName, members, inviteEmails, contest } = req.body;
 
   if (!teamName || !contest) {
     return res.status(400).json({ message: "Team name and contest are required" });
@@ -312,8 +368,8 @@ export const teamCreate = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Contest not found" });
   }
 
-  if (contestDoc.participationType !== "team") {
-    return res.status(400).json({ message: "Teams can only be created for team contests" });
+  if (contestDoc.participationType === "solo") {
+    return res.status(400).json({ message: "Teams cannot be created for solo-only contests" });
   }
 
   if (getContestStatus(contestDoc) === "completed") {
@@ -321,14 +377,11 @@ export const teamCreate = asyncHandler(async (req, res) => {
   }
 
   const normalizedTeamName = teamName.trim();
-  const requestedMembers = Array.isArray(members) ? members : [];
+  const requestedInviteEmails = normalizeInviteEmails(
+    inviteEmails ?? members
+  ).filter((email) => email !== req.user.email?.toLowerCase());
 
-  // Include creator + remove duplicates
-  const allMembers = [
-    ...new Set([req.user._id.toString(), ...requestedMembers])
-  ];
-
-  if (allMembers.length > contestDoc.maxTeamSize) {
+  if (1 + requestedInviteEmails.length > contestDoc.maxTeamSize) {
     return res.status(400).json({
       message: `A team can have a maximum of ${contestDoc.maxTeamSize} members for this contest.`
     });
@@ -341,14 +394,14 @@ export const teamCreate = asyncHandler(async (req, res) => {
   }
 
   // CHANGE 2: Check Participation collection instead of just Team collection
-  const existingParticipants = await Participation.find({
+  const existingLeaderParticipation = await Participation.findOne({
     contest,
-    user: { $in: allMembers }
+    user: req.user._id
   });
 
-  if (existingParticipants.length > 0) {
+  if (existingLeaderParticipation) {
     return res.status(400).json({
-      message: "One or more users are already participating in this contest (solo or team)."
+      message: "You are already participating in this contest (solo or team)."
     });
   }
 
@@ -356,20 +409,85 @@ export const teamCreate = asyncHandler(async (req, res) => {
   const team = await Team.create({
     teamName: normalizedTeamName,
     leader: req.user._id,
-    members: allMembers,
+    members: [req.user._id],
     contest  
   });
 
-  // CHANGE 3: Create Participation records for all team members
-  const participationDocs = allMembers.map((memberId) => ({
-    user: memberId,
+  await Participation.create({
+    user: req.user._id,
     contest,
     participationType: "team",
     team: team._id
-  }));
-  await Participation.insertMany(participationDocs);
+  });
 
-  res.status(201).json({ message: "Team created successfully", team });
+  const usersByEmail = await User.find({
+    email: { $in: requestedInviteEmails }
+  }).select("_id email");
+
+  const participatingUsers = await Participation.find({
+    contest,
+    user: { $in: usersByEmail.map((user) => user._id) }
+  }).populate("user", "email");
+
+  const blockedEmails = new Set(
+    participatingUsers
+      .map((entry) => entry.user?.email?.toLowerCase())
+      .filter(Boolean)
+  );
+
+  if (blockedEmails.size > 0) {
+    await Participation.deleteOne({ team: team._id, user: req.user._id });
+    await team.deleteOne();
+
+    return res.status(400).json({
+      message: `These users are already participating in this contest: ${Array.from(blockedEmails).join(", ")}`
+    });
+  }
+
+  const inviteResults = [];
+
+  for (const email of requestedInviteEmails) {
+    try {
+      inviteResults.push(
+        await sendTeamInvitation({
+          email,
+          team,
+          contestTitle: contestDoc.title,
+          invitedBy: req.user._id
+        })
+      );
+    } catch (error) {
+      inviteResults.push({
+        sent: false,
+        email,
+        reason: error.message
+      });
+    }
+  }
+
+  let adminNotification = { sent: false, recipients: [] };
+
+  try {
+    adminNotification = await notifyAdminsAboutPendingTeam({
+      team,
+      contest: contestDoc,
+      leader: req.user,
+      inviteEmails: requestedInviteEmails
+    });
+  } catch (error) {
+    adminNotification = {
+      sent: false,
+      recipients: [],
+      error: error.message
+    };
+  }
+
+  res.status(201).json({
+    message: "Team created successfully and is pending admin approval",
+    team,
+    invitations: inviteResults,
+    adminNotification
+  });
 });
 
 
@@ -382,6 +500,9 @@ export const addMember = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id).populate("contest", "startDate deadline maxTeamSize isClosed");
   if (!team) return res.status(404).json({ message: "Team not found" });
   if (!team.contest) return res.status(404).json({ message: "Contest not found for this team" });
+  if (team.status === "rejected") {
+    return res.status(400).json({ message: "This team has been rejected by admin." });
+  }
 
   const isMember = team.members.some(
     m => m.toString() === req.user._id.toString()
@@ -490,10 +611,59 @@ export const updateTeamStatus = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id);
   if (!team) return res.status(404).json({ message: "Team not found" });
 
+  const previousStatus = team.status;
   team.status = status;
   await team.save();
 
+  if (status === "approved" && previousStatus !== "approved") {
+    const existingParticipations = await Participation.find({
+      contest: team.contest,
+      user: { $in: team.members }
+    }).select("user");
+
+    const existingUserIds = new Set(
+      existingParticipations.map((entry) => entry.user.toString())
+    );
+
+    const missingMembers = team.members.filter(
+      (memberId) => !existingUserIds.has(memberId.toString())
+    );
+
+    if (missingMembers.length > 0) {
+      await Participation.insertMany(
+        missingMembers.map((memberId) => ({
+          user: memberId,
+          contest: team.contest,
+          participationType: "team",
+          team: team._id
+        }))
+      );
+    }
+  }
+
+  if (status === "rejected" && previousStatus !== "rejected") {
+    await Participation.deleteMany({ team: team._id });
+    await Invitation.updateMany(
+      { team: team._id, status: "pending" },
+      { status: "rejected" }
+    );
+  }
+
   res.status(200).json({ message: `Team status updated to ${status}`, team });
+});
+
+export const getPendingTeams = asyncHandler(async (req, res) => {
+  const teams = await Team.find({ status: "pending" })
+    .populate("leader", "name email")
+    .populate("members", "name email")
+    .populate("contest", "title participationType maxTeamSize startDate deadline")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    message: "Pending teams fetched successfully",
+    count: teams.length,
+    teams
+  });
 });
 
 
@@ -510,6 +680,9 @@ export const inviteMember = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id).populate("contest", "title startDate deadline maxTeamSize isClosed");
   if (!team) return res.status(404).json({ message: "Team not found" });
   if (!team.contest) return res.status(404).json({ message: "Contest not found for this team" });
+  if (team.status === "rejected") {
+    return res.status(400).json({ message: "This team has been rejected by admin." });
+  }
 
   // Only team members can invite
   const isMember = team.members.some(
@@ -635,6 +808,9 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   }
   if (!team.contest) {
     return res.status(404).json({ message: "Contest not found for this team" });
+  }
+  if (team.status === "rejected") {
+    return res.status(400).json({ message: "This team has been rejected by admin." });
   }
 
   if (getContestStatus(team.contest) === "completed") {
