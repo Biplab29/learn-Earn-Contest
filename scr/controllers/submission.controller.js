@@ -661,6 +661,61 @@ export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
 // 4) Total contests that received at least one submission
 // ================================
 
+// export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
+//   await Contest.syncStatuses();
+
+//   const submittedContestIds = await Submission.distinct("contest");
+
+//   const contests = await Contest.find({
+//     _id: { $in: submittedContestIds },
+//   })
+//     .select("title description status startDate deadline image rewards")
+//     .sort({ createdAt: -1 });
+
+//   const result = await Promise.all(
+//     contests.map(async (contest) => {
+//       const submissions = await Submission.find({ contest: contest._id })
+//         .populate("user", "name email")
+//         .populate("team", "teamName");
+
+//       const uniqueStudentsMap = new Map();
+
+//       submissions.forEach((item) => {
+//         if (item.user) {
+//           uniqueStudentsMap.set(item.user._id.toString(), {
+//             _id: item.user._id,
+//             name: item.user.name,
+//             email: item.user.email,
+//             team: item.team
+//               ? {
+//                   _id: item.team._id,
+//                   teamName: item.team.teamName,
+//                 }
+//               : null,
+//             githubLink: item.githubLink,
+//             liveUrl: item.liveUrl,
+//             submittedAt: item.createdAt,
+//           });
+//         }
+//       });
+
+//       const studentDetails = Array.from(uniqueStudentsMap.values());
+
+//       return {
+//         ...contest.toObject(),
+//         totalSubmittedStudents: studentDetails.length,
+//         studentDetails,
+//       };
+//     })
+//   );
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Submitted contest details fetched successfully",
+//     totalSubmittedContests: result.length,
+//     contests: result,
+//   });
+// });
 export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
   await Contest.syncStatuses();
 
@@ -680,7 +735,7 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
 
       const uniqueStudentsMap = new Map();
 
-      submissions.forEach((item) => {
+      const submissionDetails = submissions.map((item) => {
         if (item.user) {
           uniqueStudentsMap.set(item.user._id.toString(), {
             _id: item.user._id,
@@ -697,14 +752,40 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
             submittedAt: item.createdAt,
           });
         }
+
+        return {
+          submissionId: item._id,
+          student: item.user
+            ? {
+                _id: item.user._id,
+                name: item.user.name,
+                email: item.user.email,
+              }
+            : null,
+          team: item.team
+            ? {
+                _id: item.team._id,
+                teamName: item.team.teamName,
+              }
+            : null,
+          githubLink: item.githubLink,
+          liveUrl: item.liveUrl,
+          totalScore: item.totalScore,
+          remarks: item.remarks,
+          status: item.status,
+          submittedAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        };
       });
 
       const studentDetails = Array.from(uniqueStudentsMap.values());
 
       return {
         ...contest.toObject(),
+        totalSubmissions: submissions.length,
         totalSubmittedStudents: studentDetails.length,
         studentDetails,
+        submissionDetails,
       };
     })
   );
