@@ -53,10 +53,14 @@ const contestSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
 
-    description: String,
+    description: {
+      type: String,
+      trim: true
+    },
     image: {
       type: String
     },
@@ -92,6 +96,7 @@ const contestSchema = new mongoose.Schema(
 
     maxTeamSize: {
       type: Number,
+      min: 1,
       default: 1
     },
 
@@ -104,6 +109,20 @@ const contestSchema = new mongoose.Schema(
   
   { timestamps: true }
 );
+
+contestSchema.pre("validate", function () {
+  if (this.participationType === "solo") {
+    this.maxTeamSize = 1;
+  }
+});
+
+contestSchema.path("maxTeamSize").validate(function (value) {
+  if (this.participationType === "team") {
+    return value >= 2;
+  }
+
+  return value === 1;
+}, "Team contests must allow at least 2 members, and solo contests must have a maxTeamSize of 1.");
 
 export const Contest = mongoose.model("Contest", contestSchema);
 

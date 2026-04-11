@@ -373,6 +373,21 @@ export const submitProject = asyncHandler(async (req, res) => {
     liveUrl: liveUrl?.trim() || "",
   });
 
+  if (participation.participationType === "team") {
+    await Participation.updateMany(
+      {
+        contest: contestId,
+        team: participation.team,
+      },
+      {
+        status: "submitted",
+      }
+    );
+  } else {
+    participation.status = "submitted";
+    await participation.save();
+  }
+
   const populatedSubmission = await Submission.findById(submission._id)
     .populate("user", "name email")
     .populate("team", "teamName")
@@ -470,9 +485,9 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
+
 // Declare winner
-// ================================
+
 export const declareWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 

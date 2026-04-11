@@ -290,6 +290,7 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
+import { Contest } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js"; // <-- NEW IMPORT
 import { Invitation } from "../models/invitation.model.js";
 import { sendEmail } from "../utils/sendEmail.js";
@@ -306,17 +307,35 @@ export const teamCreate = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Team name and contest are required" });
   }
 
+  const contestDoc = await Contest.findById(contest);
+  if (!contestDoc) {
+    return res.status(404).json({ message: "Contest not found" });
+  }
+
+  if (contestDoc.participationType !== "team") {
+    return res.status(400).json({ message: "Teams can only be created for team contests" });
+  }
+
+  if (new Date(contestDoc.deadline) <= new Date()) {
+    return res.status(400).json({ message: "Contest deadline has passed." });
+  }
+
+  const normalizedTeamName = teamName.trim();
+  const requestedMembers = Array.isArray(members) ? members : [];
+
   // Include creator + remove duplicates
   const allMembers = [
-    ...new Set([req.user._id.toString(), ...(members || [])])
+    ...new Set([req.user._id.toString(), ...requestedMembers])
   ];
 
-  if (allMembers.length > 4) {
-    return res.status(400).json({ message: "Max 4 members allowed" });
+  if (allMembers.length > contestDoc.maxTeamSize) {
+    return res.status(400).json({
+      message: `A team can have a maximum of ${contestDoc.maxTeamSize} members for this contest.`
+    });
   }
 
   // CHANGE 1: Check if team name already exists for THIS contest
-  const existingTeamName = await Team.findOne({ contest, teamName });
+  const existingTeamName = await Team.findOne({ contest, teamName: normalizedTeamName });
   if (existingTeamName) {
     return res.status(400).json({ message: "Team name is already taken for this contest" });
   }
@@ -335,7 +354,8 @@ export const teamCreate = asyncHandler(async (req, res) => {
 
   // Create Team
   const team = await Team.create({
-    teamName,
+    teamName: normalizedTeamName,
+    leader: req.user._id,
     members: allMembers,
     contest  
   });
@@ -359,8 +379,9 @@ export const teamCreate = asyncHandler(async (req, res) => {
 export const addMember = asyncHandler(async (req, res) => {
   const { userId } = req.body;
 
-  const team = await Team.findById(req.params.id);
+  const team = await Team.findById(req.params.id).populate("contest", "maxTeamSize deadline");
   if (!team) return res.status(404).json({ message: "Team not found" });
+  if (!team.contest) return res.status(404).json({ message: "Contest not found for this team" });
 
   const isMember = team.members.some(
     m => m.toString() === req.user._id.toString()
@@ -370,8 +391,14 @@ export const addMember = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Only team members can add users" });
   }
 
-  if (team.members.length >= 4) {
-    return res.status(400).json({ message: "Team is full" });
+  if (new Date(team.contest.deadline) <= new Date()) {
+    return res.status(400).json({ message: "Contest deadline has passed." });
+  }
+
+  if (team.members.length >= team.contest.maxTeamSize) {
+    return res.status(400).json({
+      message: `Team is full (max ${team.contest.maxTeamSize} members)`
+    });
   }
 
   // Check user exists
@@ -380,7 +407,7 @@ export const addMember = asyncHandler(async (req, res) => {
 
   // CHANGE 4: Check if the user is already participating in ANY way
   const alreadyParticipating = await Participation.findOne({
-    contest: team.contest,
+    contest: team.contest._id,
     user: userId
   });
 
@@ -395,7 +422,7 @@ export const addMember = asyncHandler(async (req, res) => {
   // CHANGE 5: Create Participation record for the new member
   await Participation.create({
     user: userId,
-    contest: team.contest,
+    contest: team.contest._id,
     participationType: "team",
     team: team._id
   });
@@ -435,13 +462,14 @@ export const deleteTeam = asyncHandler(async (req, res) => {
 
   if (!team) return res.status(404).json({ message: "Team not found" });
 
-  // Note: Using members[0] is okay, but explicitly defining a `leader` in your schema is safer!
-  if (team.members[0].toString() !== req.user._id.toString()) {
+  const teamOwner = team.leader || team.members[0];
+  if (!teamOwner || teamOwner.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: "Only team creator can delete team" });
   }
 
   // CHANGE 6: Clean up the Participation collection before deleting the team
   await Participation.deleteMany({ team: team._id });
+  await Invitation.deleteMany({ team: team._id });
   
   // Now delete the team
   await team.deleteOne();
@@ -449,9 +477,9 @@ export const deleteTeam = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Team deleted successfully" });
 });
 
-// ==========================================
+
 // UPDATE TEAM STATUS (ADMIN ONLY)
-// ==========================================
+
 export const updateTeamStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const validStatuses = ["pending", "approved", "rejected"];
@@ -468,20 +496,22 @@ export const updateTeamStatus = asyncHandler(async (req, res) => {
   res.status(200).json({ message: `Team status updated to ${status}`, team });
 });
 
-// ==========================================
+
 // INVITE MEMBER VIA EMAIL
-// ==========================================
+
 export const inviteMember = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  const normalizedEmail = email?.toLowerCase().trim();
 
-  if (!email) {
+  if (!normalizedEmail) {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  const team = await Team.findById(req.params.id).populate("contest", "title");
+  const team = await Team.findById(req.params.id).populate("contest", "title maxTeamSize deadline");
   if (!team) return res.status(404).json({ message: "Team not found" });
+  if (!team.contest) return res.status(404).json({ message: "Contest not found for this team" });
 
-  // BUG FIX 1: Only team members can invite
+  // Only team members can invite
   const isMember = team.members.some(
     m => m.toString() === req.user._id.toString()
   );
@@ -489,13 +519,25 @@ export const inviteMember = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Only team members can invite users" });
   }
 
-  // BUG FIX 2: Team is full check (pending invitations + current members)
-  if (team.members.length >= 4) {
-    return res.status(400).json({ message: "Team is full (max 4 members)" });
+  if (new Date(team.contest.deadline) <= new Date()) {
+    return res.status(400).json({ message: "Contest deadline has passed." });
   }
 
-  // BUG FIX 3: Check if the invited email already belongs to a team member
-  const invitedUser = await User.findOne({ email: email.toLowerCase() });
+  const pendingInvitations = await Invitation.countDocuments({
+    team: team._id,
+    status: "pending",
+    tokenExpiry: { $gt: new Date() }
+  });
+
+  // Team is full check (pending invitations + current members)
+  if (team.members.length + pendingInvitations >= team.contest.maxTeamSize) {
+    return res.status(400).json({
+      message: `Team is full (max ${team.contest.maxTeamSize} members)`
+    });
+  }
+
+  //  Check if the invited email already belongs to a team member
+  const invitedUser = await User.findOne({ email: normalizedEmail });
   if (invitedUser) {
     const alreadyMember = team.members.some(
       m => m.toString() === invitedUser._id.toString()
@@ -516,7 +558,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
 
   // Check if a pending invitation for this email already exists for this team (and not expired)
   const existingInvite = await Invitation.findOne({
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     team: team._id,
     status: "pending",
     tokenExpiry: { $gt: new Date() }  // only block if the existing invite is still valid
@@ -533,15 +575,13 @@ export const inviteMember = asyncHandler(async (req, res) => {
 
   // Create the invitation record
   const invitation = await Invitation.create({
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     team: team._id,
     invitedBy: req.user._id,
     token: inviteToken,
     tokenExpiry,
   });
 
-  // Build the confirmation link → points to FRONTEND so user can log in first
-  // Frontend page reads the token from URL, then calls: POST /api/v1/teams/invite/confirm/:token
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const joinUrl = `${frontendUrl}/invite/confirm/${inviteToken}`;
 
@@ -559,18 +599,17 @@ export const inviteMember = asyncHandler(async (req, res) => {
   `;
 
   try {
-    await sendEmail(email, `Invitation to join team "${team.teamName}"`, message);
-    res.status(200).json({ message: `Invitation sent successfully to ${email}` });
+    await sendEmail(normalizedEmail, `Invitation to join team "${team.teamName}"`, message);
+    res.status(200).json({ message: `Invitation sent successfully to ${normalizedEmail}` });
   } catch (error) {
-    // Rollback invitation if email fails
+  
     await invitation.deleteOne();
     return res.status(500).json({ message: "Email could not be sent", error: error.message });
   }
 });
 
-// ==========================================
 // CONFIRM EMAIL INVITATION
-// ==========================================
+
 export const confirmInvitation = asyncHandler(async (req, res) => {
   const { token } = req.params;
 
@@ -590,26 +629,35 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "This invitation was not sent to your email address" });
   }
 
-  const team = await Team.findById(invitation.team);
+  const team = await Team.findById(invitation.team).populate("contest", "maxTeamSize deadline");
   if (!team) {
     return res.status(404).json({ message: "Team no longer exists" });
   }
-
-  if (team.members.length >= 4) {
-    return res.status(400).json({ message: "Team is already full" });
+  if (!team.contest) {
+    return res.status(404).json({ message: "Contest not found for this team" });
   }
 
-  // BUG FIX 5: Use .some() with .toString() — ObjectId cannot be compared with .includes()
+  if (new Date(team.contest.deadline) <= new Date()) {
+    return res.status(400).json({ message: "Contest deadline has passed." });
+  }
+
+  if (team.members.length >= team.contest.maxTeamSize) {
+    return res.status(400).json({
+      message: `Team is already full (max ${team.contest.maxTeamSize} members)`
+    });
+  }
+
   const alreadyInTeam = team.members.some(
     m => m.toString() === req.user._id.toString()
   );
+
   if (alreadyInTeam) {
     return res.status(400).json({ message: "You are already a member of this team" });
   }
 
   // Check if user is already participating in this contest in any way
   const alreadyParticipating = await Participation.findOne({
-    contest: team.contest,
+    contest: team.contest._id,
     user: req.user._id
   });
   if (alreadyParticipating) {
@@ -625,7 +673,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   // Create a Participation record
   await Participation.create({
     user: userId,
-    contest: team.contest,
+    contest: team.contest._id,
     participationType: "team",
     team: team._id
   });
@@ -640,11 +688,11 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   });
 });
 
-// ==========================================
 // GET MY PENDING INVITATIONS
-// ==========================================
+
 export const getMyInvitations = asyncHandler(async (req, res) => {
-  // BUG FIX 6: req.user.email is already available from JWT — no extra DB call needed
+
+  // req.user.email is already available from JWT — no extra DB call needed
   const userEmail = req.user.email?.toLowerCase();
   if (!userEmail) {
     return res.status(400).json({ message: "Email not found in token. Please login again." });
@@ -655,11 +703,11 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
       path: "team",
       select: "teamName status members",
       populate: [
-        { path: "contest", select: "title startDate endDate" },
+        { path: "contest", select: "title startDate deadline" },
         { path: "members", select: "name email" }
       ]
     })
-    .sort({ createdAt: -1 }); // newest first
+    .sort({ createdAt: -1 }); 
 
   res.status(200).json({
     message: "My pending invitations",

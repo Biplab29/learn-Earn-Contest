@@ -222,7 +222,10 @@ export const updateContest = asyncHandler(async (req, res) => {
   const updatedDescription = req.body.description ?? contest.description;
   const updatedRewards = req.body.rewards ?? contest.rewards;
   const updatedParticipationType = req.body.participationType ?? contest.participationType;
-  const updatedMaxTeamSize = req.body.maxTeamSize ?? contest.maxTeamSize;
+  const updatedMaxTeamSize =
+    updatedParticipationType === "team"
+      ? Number(req.body.maxTeamSize ?? contest.maxTeamSize)
+      : 1;
   const updatedStartDate = req.body.startDate
     ? new Date(req.body.startDate)
     : new Date(contest.startDate);
@@ -242,8 +245,23 @@ export const updateContest = asyncHandler(async (req, res) => {
     });
   }
 
-  contest.title = updatedTitle;
-  contest.description = updatedDescription;
+  if (!["solo", "team"].includes(updatedParticipationType)) {
+    return res.status(400).json({
+      message: "participationType must be either 'solo' or 'team'",
+    });
+  }
+
+  if (
+    updatedParticipationType === "team" &&
+    (!Number.isInteger(updatedMaxTeamSize) || updatedMaxTeamSize < 2)
+  ) {
+    return res.status(400).json({
+      message: "Team contests require a maxTeamSize of at least 2",
+    });
+  }
+
+  contest.title = updatedTitle.trim();
+  contest.description = updatedDescription?.trim?.() || "";
   contest.rewards = updatedRewards;
   contest.participationType = updatedParticipationType;
   contest.maxTeamSize = updatedMaxTeamSize;

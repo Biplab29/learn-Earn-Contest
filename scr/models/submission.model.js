@@ -28,10 +28,14 @@ const submissionSchema = new mongoose.Schema(
 
     githubLink: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
 
-    liveUrl: String,
+    liveUrl: {
+      type: String,
+      trim: true
+    },
 
     totalScore: {
       type: Number,
@@ -49,6 +53,25 @@ const submissionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+submissionSchema.index(
+  { contest: 1, team: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      team: { $type: "objectId" }
+    }
+  }
+);
+
+submissionSchema.index(
+  { contest: 1, user: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      team: null
+    }
+  }
+);
 
 export const Submission = mongoose.model("Submission", submissionSchema);
 

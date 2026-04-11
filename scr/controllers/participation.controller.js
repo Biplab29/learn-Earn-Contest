@@ -160,15 +160,23 @@ export const joinContestTeam = async (req, res) => {
     // 🔥 FIXED: We now pull 'members' from req.body to match your frontend!
     const { teamName, members = [] } = req.body; 
     const userId = req.user._id;
+    const normalizedTeamName = teamName?.trim();
+    const normalizedMembers = Array.isArray(members)
+      ? members.map((email) => email.toLowerCase().trim())
+      : [];
+
+    if (!normalizedTeamName) {
+      return res.status(400).json({ message: "Team name is required." });
+    }
 
     // 1. Search the database for all provided emails using the 'members' array
-    const foundUsers = await User.find({ email: { $in: members } });
+    const foundUsers = await User.find({ email: { $in: normalizedMembers } });
     
     // 2. Extract the emails that were actually found in the DB
     const foundEmails = foundUsers.map(user => user.email);
     
     // 3. Find which emails are missing (provided by user, but not in DB)
-    const missingEmails = members.filter(email => !foundEmails.includes(email));
+    const missingEmails = normalizedMembers.filter(email => !foundEmails.includes(email));
 
     // 4. If any emails are missing, block the team creation
     if (missingEmails.length > 0) {
@@ -203,7 +211,10 @@ export const joinContestTeam = async (req, res) => {
     }
 
     // 2. Check if the team name is already taken for THIS contest
-    const existingTeamName = await Team.findOne({ contest: contestId, teamName });
+    const existingTeamName = await Team.findOne({
+      contest: contestId,
+      teamName: normalizedTeamName
+    });
     if (existingTeamName) {
       return res.status(400).json({ message: "This team name is already taken for this contest." });
     }
@@ -223,7 +234,8 @@ export const joinContestTeam = async (req, res) => {
 
     // 4. Create the Team document
     const newTeam = await Team.create({
-      teamName,
+      teamName: normalizedTeamName,
+      leader: userId,
       members: allMembers,
       contest: contestId
     });

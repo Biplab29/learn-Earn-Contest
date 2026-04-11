@@ -74,13 +74,19 @@ const Userschema = new mongoose.Schema(
   {
     name: {
       type: String,
+      required: true,
+      trim: true,
     },
     email: {
       type: String,
+      required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
+      select: false,
     },
     phoneNumber: {
       type: String,
@@ -96,21 +102,37 @@ const Userschema = new mongoose.Schema(
       default: "student",
     },
 
-    refreshToken: String,
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
 
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
+    refreshToken: {
+      type: String,
+      select: false,
+    },
+
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpire: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );
 
 Userschema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+  if (!this.isModified("password") || !this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 Userschema.methods.comparePassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

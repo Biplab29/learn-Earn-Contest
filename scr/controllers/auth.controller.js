@@ -41,13 +41,14 @@ export const registerUser = asyncHandler(async (req, res) => {
   try {
     // 1. Destructure the new fields from req.body
     const { name, email, password, phoneNumber, gender } = req.body;
+    const normalizedEmail = email?.toLowerCase().trim();
 
     // 2. Update validation to include new fields if they are mandatory
-    if (!name || !email || !password || !phoneNumber || !gender) {
+    if (!name || !normalizedEmail || !password || !phoneNumber || !gender) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const userExist = await User.findOne({ email });
+    const userExist = await User.findOne({ email: normalizedEmail });
 
     if (userExist) {
       return res.status(400).json({ message: "User already exists" });
@@ -56,7 +57,7 @@ export const registerUser = asyncHandler(async (req, res) => {
     // 3. Pass the new fields into the create method
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password,
       phoneNumber,
       gender
@@ -84,14 +85,15 @@ export const registerUser = asyncHandler(async (req, res) => {
 export const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, email, phoneNumber, gender } = req.body;
+  const normalizedEmail = email?.toLowerCase().trim();
 
-  if (!name || !email || !phoneNumber || !gender) {
+  if (!name || !normalizedEmail || !phoneNumber || !gender) {
      return res.status(400).json({ message: "Please provide all fields" });
   }
   
   const updatedUser = await User.findByIdAndUpdate(
     id,
-    { name, email, phoneNumber, gender },
+    { name, email: normalizedEmail, phoneNumber, gender },
     { new: true, runValidators: true }
   );
   
@@ -114,7 +116,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Please provide all fields" });
   }
 
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
 
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({ message: "Invalid email or password" });
@@ -125,6 +127,10 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   user.refreshToken = refreshToken;
   await user.save();
+
+  const userResponse = user.toObject();
+  delete userResponse.password;
+  delete userResponse.refreshToken;
 
   const options = {
     httpOnly: true,
@@ -139,7 +145,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     message: "User logged in successfully",
     accessToken,
     role: user.role,
-    user
+    user: userResponse
   });
 });
 

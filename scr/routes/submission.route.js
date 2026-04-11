@@ -55,9 +55,6 @@ const submissionRouter = express.Router();
 
 
 
-// USER ROUTES (Student / Participant)
-
-
 // Submit project (contest submission)
 submissionRouter.post(
   "/submit",
@@ -84,7 +81,8 @@ submissionRouter.get(
 //  CONTEST SPECIFIC ROUTES
 
 
-// ✅ Get all submissions for a contest
+// Get all submissions for a contest
+// ekta contest koto jon submit koreche 
 submissionRouter.get(
   "/contest/:contestId",
   getSubmissionsByContest
@@ -133,7 +131,7 @@ submissionRouter.get(
   getTotalSubmittedContests
 );
 
-// ✅ Contest summary count only
+// Contest summary count only
 submissionRouter.get(
   "/contest-summary",
   verifyJWT,
@@ -141,7 +139,7 @@ submissionRouter.get(
   getContestSubmissionSummary
 );
 
-// ✅ Full report (student details)
+//Full report (student details)
 submissionRouter.get(
   "/:contestId/contest-report",
   verifyJWT,

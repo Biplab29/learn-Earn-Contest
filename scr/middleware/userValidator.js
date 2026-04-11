@@ -16,6 +16,15 @@ export const userValidationRules = [
     .matches(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])/)
     .withMessage("Password must include uppercase, lowercase, number and special character"),
 
+  body("phoneNumber")
+    .trim()
+    .notEmpty().withMessage("Please provide a phone number"),
+
+  body("gender")
+    .trim()
+    .isIn(["male", "female", "other", "prefer not to say"])
+    .withMessage("Please select a valid gender"),
+
   body("role")
     .optional()
     .isIn(["admin", "student"]).withMessage("Role must be either admin or student"),

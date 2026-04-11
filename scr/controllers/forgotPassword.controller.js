@@ -6,12 +6,13 @@ import { User } from "../models/user.model.js";
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  const normalizedEmail = email?.toLowerCase().trim();
 
-  if (!email) {
+  if (!normalizedEmail) {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -32,6 +33,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   
   const resetUrl = `https://learnandearnweb.netlify.app/reset-password/${resetToken}`;
 
+  
   // const message = `
   //   <h2>Password Reset</h2>
   //   <p>Click below to reset your password:</p>

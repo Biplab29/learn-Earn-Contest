@@ -7,17 +7,25 @@ const teamSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+
+  leader: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
   
   members: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User" 
+      ref: "User",
+      required: true
     }
   ],
 
   contest: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Contest"
+    ref: "Contest",
+    required: true
   },
 
   status: {
@@ -27,5 +35,12 @@ const teamSchema = new mongoose.Schema({
   }
 
 }, { timestamps: true });
+
+teamSchema.path("members").validate(
+  (members) => Array.isArray(members) && members.length > 0,
+  "At least one team member is required"
+);
+
+teamSchema.index({ contest: 1, teamName: 1 }, { unique: true });
 
 export const Team = mongoose.model("Team", teamSchema);
