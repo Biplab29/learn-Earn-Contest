@@ -748,8 +748,97 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
   });
 });
 
+
+//   const { contestId } = req.params;
+
+//   if (!isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid contestId",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   const submissions = await Submission.find({ contest: contestId })
+//     .sort({ totalScore: -1, createdAt: 1 })
+//     .populate("user", "name email")
+//     .populate("team", "teamName")
+//     .populate("contest", "title");
+
+//   if (submissions.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No submissions found to evaluate.",
+//     });
+//   }
+
+//   const evaluatedSubmissions = submissions.filter(
+//     (submission) => submission.status === "evaluated"
+//   );
+
+//   if (evaluatedSubmissions.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message:
+//         "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+//     });
+//   }
+
+//   const pendingSubmissions = submissions.filter(
+//     (submission) => submission.status !== "evaluated"
+//   );
+
+//   if (!contest.isClosed && pendingSubmissions.length > 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Evaluate all submissions before declaring the winner.",
+//       pendingSubmissions: pendingSubmissions.length,
+//     });
+//   }
+
+//   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+//   const winnerAlreadyDeclared = contest.isClosed;
+
+//   if (!winnerAlreadyDeclared) {
+//     contest.isClosed = true;
+//     contest.status = "completed";
+//     contest.winner = leaderboard[0]._id; // ✅ save winner in DB
+//     await contest.save();
+//   }
+
+//   const updatedContest = await Contest.findById(contestId).populate({
+//     path: "winner",
+//     populate: [
+//       { path: "user", select: "name email" },
+//       { path: "team", select: "teamName" },
+//     ],
+//   });
+
+//   return res.status(200).json({
+//     success: true,
+//     message: winnerAlreadyDeclared
+//       ? "Winner already declared for this contest"
+//       : "Winner declared successfully",
+//     contestId: contest._id,
+//     contestTitle: contest.title,
+//     winner: updatedContest?.winner || leaderboard[0],
+//     leaderboard,
+//     totalEvaluatedSubmissions: leaderboard.length,
+//   });
+// });
+
 export const getAllWinners = asyncHandler(async (req, res) => {
-  const contests = await Contest.find({ winner: { $ne: null } })
+  const contests = await Contest.find({
+    winner: { $exists: true, $ne: null },
+  })
     .populate({
       path: "winner",
       populate: [
@@ -757,16 +846,20 @@ export const getAllWinners = asyncHandler(async (req, res) => {
         { path: "team", select: "teamName" },
       ],
     })
-    .select("title status startDate deadline winner");
+    .select("title status startDate deadline winner")
+    .sort({ createdAt: -1 });
 
   return res.status(200).json({
     success: true,
+    message: "All winners fetched successfully",
     totalWinners: contests.length,
     winners: contests.map((contest) => ({
       contestId: contest._id,
       contestTitle: contest.title,
+      status: contest.status,
+      startDate: contest.startDate,
+      deadline: contest.deadline,
       winner: contest.winner,
     })),
   });
 });
-
