@@ -1,38 +1,41 @@
 import mongoose from "mongoose";
 
-const invitationSchema = new mongoose.Schema({
-  email: {
-    type: String,
-    required: true,
-    trim: true,
-    lowercase: true,
+const invitationSchema = new mongoose.Schema(
+  {
+    invitedUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    team: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      required: true,
+    },
+    invitedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    token: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    tokenExpiry: {
+      type: Date,
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+      default: "pending",
+    },
   },
-  team: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Team",
-    required: true,
-  },
-  invitedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  token: {
-    type: String,
-    required: true,
-  },
-  tokenExpiry: {
-    type: Date,
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ["pending", "accepted", "rejected"],
-    default: "pending",
-  },
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-// MongoDB will delete the document 48h after tokenExpiry
+// Auto delete after expiry time
 invitationSchema.index({ tokenExpiry: 1 }, { expireAfterSeconds: 0 });
 
 export const Invitation = mongoose.model("Invitation", invitationSchema);
