@@ -1,278 +1,4 @@
 
-// import asyncHandler from "../middleware/asyncHandler.js";
-// import { Submission } from "../models/submission.model.js";
-// import { Contest } from "../models/contest.model.js";
-// import { Participation } from "../models/participation.model.js";
-
-
-// // Submit a project to a contest
-// // export const submitProject = asyncHandler(async (req, res) => {
-// //   const { contestId, teamId, githubLink, liveUrl } = req.body;
-
-// //   const contest = await Contest.findById(contestId);
-// //   if (!contest || contest?.status !== "active") {
-// //     return res.status(400).json({ message: "Contest is not active for submissions" });
-// //   }
-
-// //   const existingSubmission = await Submission.findOne({
-// //     user: req.user._id,
-// //     contest: contestId
-// //   });
-
-// //   if (existingSubmission) {
-// //     return res.status(400).json({
-// //       message: "You have already submitted a project for this contest"
-// //     });
-// //   }
-
-// //   const submission = await Submission.create({
-// //     user: req.user._id,
-// //     team: teamId || null,
-// //     contest: contestId,
-// //     githubLink,
-// //     liveUrl,
-// //   });
-
-// //   res.status(201).json({
-// //     message: "Project submitted successfully!",
-// //     submission
-// //   });
-// // });
-
-// // export const submitProject = asyncHandler(async (req, res) => {
-// //   const { contestId, githubLink, liveUrl } = req.body;
-// //   const userId = req.user._id;
-
-// //   // 1. Check if contest exists and is active
-// //   const contest = await Contest.findById(contestId);
-// //   if (!contest || contest?.status !== "active") {
-// //     return res.status(400).json({ message: "Contest is not active for submissions" });
-// //   }
-
-// //   // 2. Verify the user actually joined the contest
-// //   const participation = await Participation.findOne({
-// //     user: userId,
-// //     contest: contestId
-// //   });
-
-// //   if (!participation) {
-// //     return res.status(403).json({ message: "You must join this contest before submitting." });
-// //   }
-
-// //   // 3. Check for existing submissions smartly (Solo vs Team)
-// //   let existingSubmission;
-  
-// //   if (participation.participationType === "team") {
-// //     // If they are in a team, check if ANY team member already submitted for this team
-// //     existingSubmission = await Submission.findOne({
-// //       contest: contestId,
-// //       team: participation.team
-// //     });
-// //   } else {
-// //     existingSubmission = await Submission.findOne({
-// //       contest: contestId,
-// //       user: userId,
-// //       team: null 
-// //     });
-// //   }
-
-// //   if (existingSubmission) {
-// //     return res.status(400).json({
-// //       message: "A submission already exists for you or your team in this contest."
-// //     });
-// //   }
-
-// //   // 4. Create the submission
-// //   const submission = await Submission.create({
-// //     user: userId, // Tracks exactly WHO clicked the submit button
-// //     team: participation.team || null, // Auto-assigns team ID securely from the database
-// //     contest: contestId,
-// //     githubLink,
-// //     liveUrl,
-// //   });
-
-// //   res.status(201).json({
-// //     message: "Project submitted successfully!",
-// //     submission
-// //   });
-// // });
-
-// export const submitProject = asyncHandler(async (req, res) => {
-//   const { contestId, githubLink, liveUrl } = req.body;
-//   const userId = req.user._id;
-
-//   // Ensure they actually provided the required links
-//   if (!githubLink) {
-//     return res.status(400).json({ message: "A GitHub link is required to submit." });
-//   }
-
-//   // 1. Check if contest exists and is active
-//   const contest = await Contest.findById(contestId);
-//   if (!contest || contest?.status !== "active") {
-//     return res.status(400).json({ message: "Contest is not active for submissions" });
-//   }
-
-//   // 2. Verify the user actually joined the contest
-//   const participation = await Participation.findOne({
-//     user: userId,
-//     contest: contestId
-//   });
-
-//   if (!participation) {
-//     return res.status(403).json({ message: "You must join this contest before submitting." });
-//   }
-
-//   // 3. Check for existing submissions smartly (Solo vs Team)
-//   let existingSubmission;
-  
-//   if (participation.participationType === "team") {
-//     // If they are in a team, check if ANY team member already submitted for this team
-//     existingSubmission = await Submission.findOne({
-//       contest: contestId,
-//       team: participation.team
-//     });
-//   } else {
-//     existingSubmission = await Submission.findOne({
-//       contest: contestId,
-//       user: userId,
-//       team: null 
-//     });
-//   }
-
-//   if (existingSubmission) {
-//     return res.status(400).json({
-//       message: "A submission already exists for you or your team in this contest."
-//     });
-//   }
-
-//   // 4. Create the submission
-//   const submission = await Submission.create({
-//     user: userId, 
-//     team: participation.team || null, 
-//     contest: contestId,
-//     githubLink,
-//     liveUrl,
-//   });
-
-//   res.status(201).json({
-//     message: "Project submitted successfully!",
-//     submission
-//   });
-// });
-
-// // Get all submissions for a specific contest
-// export const getSubmissionsByContest = asyncHandler(async (req, res) => {
-//   const submissions = await Submission.find({ contest: req.params.contestId })
-//     .populate("user", "name email")
-//     .populate("team", "teamName")
-//     .sort({ totalScore: -1 });
-
-//   res.status(200).json({
-//     message: "Contest submissions",
-//     submissions
-//   });
-// });
-
-// // Get my submissions
-// export const getMySubmissions = asyncHandler(async (req, res) => {
-//   const submissions = await Submission.find({ user: req.user._id })
-//     .populate("contest", "title status");
-
-//   res.status(200).json({
-//     message: "My submissions",
-//     submissions
-//   });
-// });
-
-// // Evaluate submission
-// export const evaluateSubmission = asyncHandler(async (req, res) => {
-//   const { totalScore, remarks } = req.body;
-
-//   const submission = await Submission.findByIdAndUpdate(
-//     req.params.id,
-//     {
-//       totalScore,
-//       remarks,
-//       status: "evaluated"
-//     },
-//     { new: true, runValidators: true }
-//   );
-
-//   if (!submission) {
-//     return res.status(404).json({ message: "Submission not found" });
-//   }
-
-//   res.status(200).json({
-//     message: "Submission evaluated successfully",
-//     submission
-//   });
-// });
-
-// // Declare winner
-// export const declareWinner = asyncHandler(async (req, res) => {
-//   const contest = await Contest.findById(req.params.contestId);
-
-//   if (!contest) {
-//     return res.status(404).json({ message: "Contest not found" });
-//   }
-
-//   const leaderboard = await Submission.find({ contest: req.params.contestId })
-//     .sort({ totalScore: -1 })
-//     .populate("user", "name email")
-//     .populate("team", "teamName");
-
-//   if (leaderboard.length === 0) {
-//     return res.status(400).json({ message: "No submissions found to evaluate." });
-//   }
-
-//   contest.status = "completed";
-//   await contest.save();
-
-//   res.status(200).json({
-//     message: "Winner declared!",
-//     winner: leaderboard[0],
-//     leaderboard
-//   });
-// });
-
-// // 1) How many users joined one contest
-// export const getContestParticipantCount = asyncHandler(async (req, res) => {
-//   const { contestId } = req.params;
-
-//   const users = await Submission.distinct("user", {
-//     contest: contestId
-//   });
-
-//   res.status(200).json({
-//     message: "Contest participant count fetched successfully",
-//     contestId,
-//     totalUsers: users.length
-//   });
-// });
-
-// // 2) How many users joined all contests
-// export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
-//   const users = await Submission.distinct("user");
-
-//   res.status(200).json({
-//     message: "All contest unique participant count fetched successfully",
-//     totalUsers: users.length
-//   });
-// });
-
-// // 3) How many contests one user joined
-// export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
-//   const contests = await Submission.distinct("contest", {
-//     user: req.user._id
-//   });
-
-//   res.status(200).json({
-//     message: "My joined contest count fetched successfully",
-//     userId: req.user._id,
-//     totalContests: contests.length
-//   });
-// });
-
 import mongoose from "mongoose";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Submission } from "../models/submission.model.js";
@@ -436,10 +162,20 @@ export const getSubmissionsByContest = asyncHandler(async (req, res) => {
     .populate("contest", "title status startDate deadline")
     .sort({ totalScore: -1, createdAt: -1 });
 
+  const evaluatedSubmissions = submissions.filter(
+    (item) => item.status === "evaluated"
+  );
+
+  const pendingSubmissions = submissions.filter(
+    (item) => item.status !== "evaluated"
+  );
+
   return res.status(200).json({
     success: true,
     message: "Contest submissions fetched successfully",
     totalSubmissions: submissions.length,
+    totalEvaluatedSubmissions: evaluatedSubmissions.length,
+    totalPendingSubmissions: pendingSubmissions.length,
     submissions,
   });
 });
@@ -527,9 +263,9 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
   });
 });
 
-
+// ================================
 // Declare winner
-
+// ================================
 export const declareWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -606,29 +342,6 @@ export const declareWinner = asyncHandler(async (req, res) => {
 });
 
 // ================================
-// 1) How many users submitted in one contest
-// ================================
-export const getContestParticipantCount = asyncHandler(async (req, res) => {
-  const { contestId } = req.params;
-
-  if (!isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid contestId",
-    });
-  }
-
-  const users = await Submission.distinct("user", { contest: contestId });
-
-  return res.status(200).json({
-    success: true,
-    message: "Contest participant count fetched successfully",
-    contestId,
-    totalUsers: users.length,
-  });
-});
-
-// ================================
 // 2) How many unique users submitted across all contests
 // ================================
 export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
@@ -658,64 +371,8 @@ export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
 });
 
 // ================================
-// 4) Total contests that received at least one submission
+// ***4) Total contests that received at least one submission
 // ================================
-
-// export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
-//   await Contest.syncStatuses();
-
-//   const submittedContestIds = await Submission.distinct("contest");
-
-//   const contests = await Contest.find({
-//     _id: { $in: submittedContestIds },
-//   })
-//     .select("title description status startDate deadline image rewards")
-//     .sort({ createdAt: -1 });
-
-//   const result = await Promise.all(
-//     contests.map(async (contest) => {
-//       const submissions = await Submission.find({ contest: contest._id })
-//         .populate("user", "name email")
-//         .populate("team", "teamName");
-
-//       const uniqueStudentsMap = new Map();
-
-//       submissions.forEach((item) => {
-//         if (item.user) {
-//           uniqueStudentsMap.set(item.user._id.toString(), {
-//             _id: item.user._id,
-//             name: item.user.name,
-//             email: item.user.email,
-//             team: item.team
-//               ? {
-//                   _id: item.team._id,
-//                   teamName: item.team.teamName,
-//                 }
-//               : null,
-//             githubLink: item.githubLink,
-//             liveUrl: item.liveUrl,
-//             submittedAt: item.createdAt,
-//           });
-//         }
-//       });
-
-//       const studentDetails = Array.from(uniqueStudentsMap.values());
-
-//       return {
-//         ...contest.toObject(),
-//         totalSubmittedStudents: studentDetails.length,
-//         studentDetails,
-//       };
-//     })
-//   );
-
-//   return res.status(200).json({
-//     success: true,
-//     message: "Submitted contest details fetched successfully",
-//     totalSubmittedContests: result.length,
-//     contests: result,
-//   });
-// });
 export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
   await Contest.syncStatuses();
 
@@ -734,6 +391,15 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
         .populate("team", "teamName");
 
       const uniqueStudentsMap = new Map();
+      const evaluatedStudentsMap = new Map();
+
+      const evaluatedSubmissions = submissions.filter(
+        (item) => item.status === "evaluated"
+      );
+
+      const pendingSubmissions = submissions.filter(
+        (item) => item.status !== "evaluated"
+      );
 
       const submissionDetails = submissions.map((item) => {
         if (item.user) {
@@ -751,6 +417,22 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
             liveUrl: item.liveUrl,
             submittedAt: item.createdAt,
           });
+
+          if (item.status === "evaluated") {
+            evaluatedStudentsMap.set(item.user._id.toString(), {
+              _id: item.user._id,
+              name: item.user.name,
+              email: item.user.email,
+              team: item.team
+                ? {
+                    _id: item.team._id,
+                    teamName: item.team.teamName,
+                  }
+                : null,
+              totalScore: item.totalScore,
+              remarks: item.remarks,
+            });
+          }
         }
 
         return {
@@ -778,14 +460,44 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
         };
       });
 
+      const evaluatedSubmissionDetails = evaluatedSubmissions.map((item) => ({
+        submissionId: item._id,
+        student: item.user
+          ? {
+              _id: item.user._id,
+              name: item.user.name,
+              email: item.user.email,
+            }
+          : null,
+        team: item.team
+          ? {
+              _id: item.team._id,
+              teamName: item.team.teamName,
+            }
+          : null,
+        githubLink: item.githubLink,
+        liveUrl: item.liveUrl,
+        totalScore: item.totalScore,
+        remarks: item.remarks,
+        status: item.status,
+        submittedAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }));
+
       const studentDetails = Array.from(uniqueStudentsMap.values());
+      const evaluatedStudentDetails = Array.from(evaluatedStudentsMap.values());
 
       return {
         ...contest.toObject(),
         totalSubmissions: submissions.length,
         totalSubmittedStudents: studentDetails.length,
+        totalEvaluatedSubmissions: evaluatedSubmissions.length,
+        totalPendingSubmissions: pendingSubmissions.length,
+        totalEvaluatedStudents: evaluatedStudentDetails.length,
         studentDetails,
+        evaluatedStudentDetails,
         submissionDetails,
+        evaluatedSubmissionDetails,
       };
     })
   );
@@ -810,6 +522,20 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
         _id: "$contest",
         totalSubmissions: { $sum: 1 },
         uniqueStudents: { $addToSet: "$user" },
+        totalEvaluatedSubmissions: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "evaluated"] }, 1, 0],
+          },
+        },
+        evaluatedStudents: {
+          $addToSet: {
+            $cond: [
+              { $eq: ["$status", "evaluated"] },
+              "$user",
+              "$$REMOVE",
+            ],
+          },
+        },
       },
     },
     {
@@ -823,7 +549,7 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
     {
       $unwind: "$contest",
     },
-    {   
+    {
       $project: {
         _id: 0,
         contestId: "$contest._id",
@@ -833,6 +559,11 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
         deadline: "$contest.deadline",
         totalSubmissions: 1,
         totalStudentsSubmitted: { $size: "$uniqueStudents" },
+        totalEvaluatedSubmissions: 1,
+        totalPendingSubmissions: {
+          $subtract: ["$totalSubmissions", "$totalEvaluatedSubmissions"],
+        },
+        totalEvaluatedStudents: { $size: "$evaluatedStudents" },
       },
     },
     {
@@ -848,14 +579,12 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
   });
 });
 
-
 // ================================
 // SINGLE CONTEST + STUDENT DETAILS
 // ================================
 export const getSingleContestSubmissionReport = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
-  // validate id
   if (!contestId || !isValidObjectId(contestId)) {
     return res.status(400).json({
       success: false,
@@ -865,9 +594,9 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
 
   await Contest.syncStatuses({ _id: contestId });
 
-  // find contest
-  const contest = await Contest.findById(contestId)
-    .select("title status startDate deadline");
+  const contest = await Contest.findById(contestId).select(
+    "title status startDate deadline"
+  );
 
   if (!contest) {
     return res.status(404).json({
@@ -876,16 +605,30 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
     });
   }
 
-  // get submissions of that contest ONLY
   const submissions = await Submission.find({ contest: contestId })
     .populate("user", "name email")
     .populate("team", "teamName members")
     .sort({ createdAt: -1 });
 
-  // unique students
   const uniqueStudentIds = [
     ...new Set(
       submissions
+        .filter((item) => item.user?._id)
+        .map((item) => item.user._id.toString())
+    ),
+  ];
+
+  const evaluatedSubmissions = submissions.filter(
+    (item) => item.status === "evaluated"
+  );
+
+  const pendingSubmissions = submissions.filter(
+    (item) => item.status !== "evaluated"
+  );
+
+  const evaluatedStudentIds = [
+    ...new Set(
+      evaluatedSubmissions
         .filter((item) => item.user?._id)
         .map((item) => item.user._id.toString())
     ),
@@ -902,8 +645,34 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
       deadline: contest.deadline,
       totalSubmissions: submissions.length,
       totalStudentsSubmitted: uniqueStudentIds.length,
+      totalEvaluatedSubmissions: evaluatedSubmissions.length,
+      totalPendingSubmissions: pendingSubmissions.length,
+      totalEvaluatedStudents: evaluatedStudentIds.length,
     },
     studentDetails: submissions.map((item) => ({
+      submissionId: item._id,
+      student: item.user
+        ? {
+            _id: item.user._id,
+            name: item.user.name,
+            email: item.user.email,
+          }
+        : null,
+      team: item.team
+        ? {
+            _id: item.team._id,
+            teamName: item.team.teamName,
+            members: item.team.members || [],
+          }
+        : null,
+      githubLink: item.githubLink,
+      liveUrl: item.liveUrl,
+      totalScore: item.totalScore,
+      remarks: item.remarks,
+      status: item.status,
+      submittedAt: item.createdAt,
+    })),
+    evaluatedSubmissionDetails: evaluatedSubmissions.map((item) => ({
       submissionId: item._id,
       student: item.user
         ? {
@@ -929,4 +698,53 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
   });
 });
 
+
+export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
+  const { contestId } = req.params;
+
+  if (!contestId || !mongoose.Types.ObjectId.isValid(contestId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid contestId",
+    });
+  }
+
+  const submissions = await Submission.find({
+    contest: contestId,
+    status: "evaluated",
+  })
+    .populate("user", "name email")
+    .populate("team", "teamName");
+
+  const uniqueUsersMap = new Map();
+
+  submissions.forEach((item) => {
+    if (item.user) {
+      uniqueUsersMap.set(item.user._id.toString(), {
+        _id: item.user._id,
+        name: item.user.name,
+        email: item.user.email,
+        team: item.team
+          ? {
+              _id: item.team._id,
+              teamName: item.team.teamName,
+            }
+          : null,
+        totalScore: item.totalScore,
+        remarks: item.remarks,
+        evaluatedAt: item.updatedAt,
+      });
+    }
+  });
+
+  const evaluatedUsers = Array.from(uniqueUsersMap.values());
+
+  return res.status(200).json({
+    success: true,
+    message: "Evaluated users fetched successfully",
+    contestId,
+    totalEvaluatedUsers: evaluatedUsers.length,
+    evaluatedUsers,
+  });
+});
 

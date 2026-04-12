@@ -3,43 +3,9 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import { User } from '../models/user.model.js';
 
 
-// export const registerUser = asyncHandler(async (req, res) => {
-//   try {
-//     const { name, email, password } = req.body;
-
-//     if (!name || !email || !password) {
-//       return res.status(400).json({ message: "All fields required" });
-//     }
-
-//     const userExist = await User.findOne({ email });
-
-//     if (userExist) {
-//       return res.status(400).json({ message: "User already exists" });
-//     }
-
-//     const user = await User.create({
-//       name,
-//       email,
-//       password
-//     });
-
-//     res.status(201).json({
-//       message: "User registered successfully",
-//       user
-//     });
-
-//   } catch (error) {
-//     console.log("REGISTER ERROR:", error.message);
-
-//     res.status(500).json({
-//       message: error.message
-//     });
-//   }
-// });
-
 export const registerUser = asyncHandler(async (req, res) => {
   try {
-    // 1. Destructure the new fields from req.body
+    
     const { name, email, password, phoneNumber, gender } = req.body;
     const normalizedEmail = email?.toLowerCase().trim();
 

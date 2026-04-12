@@ -1,7 +1,7 @@
 import express from "express";
 import {
   joinContestSolo,
-  joinContestTeam,
+  //joinContestTeam,
   getMyParticipations,
   getContestParticipants,
   getStudentContestHistory
@@ -20,7 +20,7 @@ participationRouter.get("/my-participations", verifyJWT, getMyParticipations);
 participationRouter.post("/contest/:contestId/join/solo", verifyJWT, joinContestSolo);
 
 // create a team and join contest
-participationRouter.post("/contest/:contestId/join/team", verifyJWT, joinContestTeam);
+//participationRouter.post("/contest/:contestId/join/team", verifyJWT, joinContestTeam);
 
 // GET a student's complete contest and submission history
 participationRouter.get("/my-history", verifyJWT, getStudentContestHistory);

@@ -41,73 +41,45 @@ import {
   getMySubmissions,
   evaluateSubmission,
   declareWinner,
-  getContestParticipantCount,
+  // getContestParticipantCount,
   getAllContestParticipantCount,
   getMyJoinedContestCount,
   getTotalSubmittedContests,
   getContestSubmissionSummary,
   getSingleContestSubmissionReport,
+  getEvaluatedUsersByContest,
 } from "../controllers/submission.controller.js";
 
 import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
 
 const submissionRouter = express.Router();
 
+// ===============================
+// SUBMIT
+// ===============================
+submissionRouter.post("/submit", verifyJWT, submitProject);
 
+// ===============================
+// MY ROUTES
+// ===============================
+submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
+submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount);
 
-// Submit project (contest submission)
-submissionRouter.post(
-  "/submit",
-  verifyJWT,
-  submitProject
-);
+// ===============================
+// GENERAL CONTEST ROUTES
+// ===============================
+submissionRouter.get("/participant-count", getAllContestParticipantCount);
+submissionRouter.get("/contest/:contestId", getSubmissionsByContest);
+// submissionRouter.get(
+//   "/contest/:contestId/participant-count",
+//   getContestParticipantCount
+// );
 
-// Get my submissions
-submissionRouter.get(
-  "/my-submissions",
-  verifyJWT,
-  getMySubmissions
-);
+// ===============================
+// ADMIN EVALUATION ROUTES
+// ===============================
 
-// How many contests I submitted
-submissionRouter.get(
-  "/my-contest-count",
-  verifyJWT,
-  getMyJoinedContestCount
-);
-
-
-
-//  CONTEST SPECIFIC ROUTES
-
-
-// Get all submissions for a contest
-// ekta contest koto jon submit koreche 
-submissionRouter.get(
-  "/contest/:contestId",
-  getSubmissionsByContest
-);
-
-//  How many students submitted in one contest
-submissionRouter.get(
-  "/contest/:contestId/participant-count",
-  getContestParticipantCount
-);
-
-
-
-// (All contests)
-
-//  Total unique users across all contests
-submissionRouter.get(
-  "/participant-count",
-  getAllContestParticipantCount
-);
-
-
-// ADMIN ROUTES
-
-//  Evaluate submission
+// evaluate one submission
 submissionRouter.put(
   "/evaluate/:id",
   verifyJWT,
@@ -115,7 +87,7 @@ submissionRouter.put(
   evaluateSubmission
 );
 
-//  Declare winner
+// declare winner
 submissionRouter.put(
   "/contest/:contestId/declare-winner",
   verifyJWT,
@@ -123,7 +95,7 @@ submissionRouter.put(
   declareWinner
 );
 
-//  How many contests received submissions
+// all contests with full submission details
 submissionRouter.get(
   "/submitted-contests-count",
   verifyJWT,
@@ -131,7 +103,7 @@ submissionRouter.get(
   getTotalSubmittedContests
 );
 
-// Contest summary count only
+// contest summary with evaluated/pending counts
 submissionRouter.get(
   "/contest-summary",
   verifyJWT,
@@ -139,15 +111,22 @@ submissionRouter.get(
   getContestSubmissionSummary
 );
 
-//Full report (student details)
+// single contest full report
 submissionRouter.get(
-  "/:contestId/contest-report",
+  "/contest-report/:contestId",
   verifyJWT,
   authorizeRoles("admin"),
   getSingleContestSubmissionReport
 );
 
+// evaluated users details in one contest
+submissionRouter.get(
+  "/contest/:contestId/evaluated-users",
+  verifyJWT,
+  authorizeRoles("admin"),
+  getEvaluatedUsersByContest
+);
 
 export default submissionRouter;
 
-console.log("submission route is working");
+console.log("Submission Router is working");
