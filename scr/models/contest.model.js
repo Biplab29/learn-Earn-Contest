@@ -95,7 +95,10 @@ const contestSchema = new mongoose.Schema(
       enum: ["upcoming", "active", "completed"],
       default: "upcoming"  
     },
-
+winner: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Submission",
+},
     isClosed: {
       type: Boolean,
       default: false
@@ -118,6 +121,7 @@ const contestSchema = new mongoose.Schema(
     type: String, 
     required: true
 }],
+
 
   },
   

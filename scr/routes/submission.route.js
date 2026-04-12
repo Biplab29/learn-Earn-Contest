@@ -48,6 +48,7 @@ import {
   getContestSubmissionSummary,
   getSingleContestSubmissionReport,
   getEvaluatedUsersByContest,
+  getAllWinners,
 } from "../controllers/submission.controller.js";
 
 import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
@@ -125,6 +126,13 @@ submissionRouter.get(
   verifyJWT,
   authorizeRoles("admin"),
   getEvaluatedUsersByContest
+);
+
+submissionRouter.get(
+  "/winners",
+  verifyJWT,
+  authorizeRoles("admin"),
+  getAllWinners
 );
 
 export default submissionRouter;

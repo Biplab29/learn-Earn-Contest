@@ -748,3 +748,25 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
   });
 });
 
+export const getAllWinners = asyncHandler(async (req, res) => {
+  const contests = await Contest.find({ winner: { $ne: null } })
+    .populate({
+      path: "winner",
+      populate: [
+        { path: "user", select: "name email" },
+        { path: "team", select: "teamName" },
+      ],
+    })
+    .select("title status startDate deadline winner");
+
+  return res.status(200).json({
+    success: true,
+    totalWinners: contests.length,
+    winners: contests.map((contest) => ({
+      contestId: contest._id,
+      contestTitle: contest.title,
+      winner: contest.winner,
+    })),
+  });
+});
+
