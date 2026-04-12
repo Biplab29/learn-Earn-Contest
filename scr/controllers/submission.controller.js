@@ -1192,3 +1192,68 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
     submission,
   });
 });
+
+export const deleteSubmission = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid submission id",
+    });
+  }
+
+  const submission = await Submission.findById(id).populate(
+    "contest",
+    "title isClosed"
+  );
+
+  if (!submission) {
+    return res.status(404).json({
+      success: false,
+      message: "Submission not found",
+    });
+  }
+
+  if (submission.contest?.isClosed) {
+    return res.status(400).json({
+      success: false,
+      message: "Winner already declared. Submission cannot be deleted.",
+    });
+  }
+
+  const contestId = submission.contest?._id || submission.contest;
+  const teamId = submission.team?._id || submission.team;
+  const userId = submission.user?._id || submission.user;
+
+  if (teamId) {
+    await Participation.updateMany(
+      {
+        contest: contestId,
+        team: teamId,
+      },
+      {
+        $unset: { status: 1 },
+      }
+    );
+  } else {
+    await Participation.updateOne(
+      {
+        contest: contestId,
+        user: userId,
+      },
+      {
+        $unset: { status: 1 },
+      }
+    );
+  }
+
+  await submission.deleteOne();
+
+  return res.status(200).json({
+    success: true,
+    message: "Submission deleted successfully",
+    submissionId: id,
+    contestId,
+  });
+});

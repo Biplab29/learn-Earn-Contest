@@ -51,6 +51,7 @@
     getAllWinners,
     updateEvaluation,
     deleteEvaluation,
+    deleteSubmission,
   } from "../controllers/submission.controller.js";
 
   import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
@@ -151,6 +152,13 @@ submissionRouter.delete(
   verifyJWT,
   authorizeRoles("admin"),
   deleteEvaluation
+);
+
+submissionRouter.delete(
+  "/:id",
+  verifyJWT,
+  authorizeRoles("admin"),
+  deleteSubmission
 );
 
   export default submissionRouter;
