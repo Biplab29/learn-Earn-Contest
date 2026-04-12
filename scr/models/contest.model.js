@@ -76,7 +76,7 @@ const contestSchema = new mongoose.Schema(
 
     startDate: {
       type: Date,
-      required: true 
+      required: true
     },
 
     deadline: {
@@ -93,12 +93,15 @@ const contestSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["upcoming", "active", "completed"],
-      default: "upcoming"  
+      default: "upcoming"
     },
-winner: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Submission",
-},
+
+    winner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Submission",
+      default: null,
+    },
+    
     isClosed: {
       type: Boolean,
       default: false
@@ -118,13 +121,13 @@ winner: {
     },
 
     rewards: [{
-    type: String, 
-    required: true
-}],
+      type: String,
+      required: true
+    }],
 
 
   },
-  
+
   { timestamps: true }
 );
 
