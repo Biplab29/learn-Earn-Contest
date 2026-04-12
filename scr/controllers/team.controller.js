@@ -1037,13 +1037,8 @@ import { Team } from "../models/team.model.js";
 import { User } from "../models/user.model.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js";
-//import { Invitation } from "../models/invitation.model.js";
+import { Invitation } from "../models/invitation.model.js";
 import { Notification } from "../models/notification.model.js";
-
-const normalizeEmail = (value = "") => value.trim().toLowerCase();
-
-const isValidEmail = (value = "") =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 
 const toArray = (value) => {
   if (Array.isArray(value)) {
@@ -1057,33 +1052,13 @@ const toArray = (value) => {
   return [value];
 };
 
-const buildPendingInvitationQuery = ({ teamId, userId, email }) => {
-  const normalizedInviteEmail = normalizeEmail(email);
-  const query = {
+const buildPendingInvitationQuery = ({ teamId, userId }) => {
+  return {
     team: teamId,
+    invitedUser: userId,
     status: "pending",
     tokenExpiry: { $gt: new Date() },
   };
-
-  const inviteTargets = [];
-
-  if (userId) {
-    inviteTargets.push({ invitedUser: userId });
-  }
-
-  if (normalizedInviteEmail) {
-    inviteTargets.push({ email: normalizedInviteEmail });
-  }
-
-  if (inviteTargets.length === 1) {
-    return { ...query, ...inviteTargets[0] };
-  }
-
-  if (inviteTargets.length > 1) {
-    query.$or = inviteTargets;
-  }
-
-  return query;
 };
 
 const getInvitationReference = (req) => {
@@ -1163,13 +1138,12 @@ const createInvitationForTarget = async ({
   contest,
   invitedBy,
 }) => {
-  if (!target.user && !target.email) {
+  if (!target.user) {
     return {
       sent: false,
       reason: "invalid-target",
       invitation: null,
       userId: null,
-      email: null,
       notificationSent: false,
     };
   }
@@ -1178,7 +1152,6 @@ const createInvitationForTarget = async ({
     buildPendingInvitationQuery({
       teamId: team._id,
       userId: target.user?._id,
-      email: target.email,
     })
   );
 
@@ -1188,7 +1161,6 @@ const createInvitationForTarget = async ({
       reason: "already invited",
       invitation: existingInvite,
       userId: target.user?._id || null,
-      email: target.email,
       notificationSent: false,
     };
   }
@@ -1197,8 +1169,7 @@ const createInvitationForTarget = async ({
   const tokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
   const invitation = await Invitation.create({
-    invitedUser: target.user?._id || null,
-    email: target.email,
+    invitedUser: target.user._id,
     team: team._id,
     invitedBy: invitedBy._id,
     token: inviteToken,
@@ -1218,7 +1189,6 @@ const createInvitationForTarget = async ({
     sent: true,
     invitation,
     userId: target.user?._id || null,
-    email: target.email,
     notificationSent,
   };
 };
@@ -1230,8 +1200,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, contest } = req.body;
   const inviteUserIdsInput =
     req.body.inviteUserIds ?? req.body.invitedUserIds ?? req.body.userIds ?? [];
-  const inviteEmailsInput =
-    req.body.inviteEmails ?? req.body.emails ?? req.body.invitedEmails ?? [];
 
   if (!teamName || !contest) {
     return res.status(400).json({
@@ -1297,27 +1265,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
     ),
   ];
 
-  const uniqueInviteEmails = [
-    ...new Set(
-      toArray(inviteEmailsInput)
-        .map((email) => normalizeEmail(email))
-        .filter(Boolean)
-        .filter((email) => email !== normalizeEmail(req.user.email))
-    ),
-  ];
-
-  const invalidInviteEmails = uniqueInviteEmails.filter(
-    (email) => !isValidEmail(email)
-  );
-
-  if (invalidInviteEmails.length > 0) {
-    return res.status(400).json({
-      success: false,
-      message: "One or more invite emails are invalid",
-      invalidInviteEmails,
-    });
-  }
-
   const users = await User.find({
     _id: { $in: uniqueInviteUserIds },
   }).select("_id name email");
@@ -1329,53 +1276,9 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  const usersByEmail = uniqueInviteEmails.length
-    ? await User.find({
-        email: { $in: uniqueInviteEmails },
-      }).select("_id name email")
-    : [];
-
-  const emailUserMap = new Map(
-    usersByEmail.map((user) => [normalizeEmail(user.email), user])
-  );
-
-  const inviteTargets = [];
-  const seenUserIds = new Set();
-  const seenEmails = new Set();
-
-  const addInviteTarget = (user, emailOverride = null) => {
-    const email = normalizeEmail(emailOverride || user?.email || "");
-    const userId = user?._id?.toString() || null;
-
-    if (userId && seenUserIds.has(userId)) {
-      return;
-    }
-
-    if (email && seenEmails.has(email)) {
-      return;
-    }
-
-    if (userId) {
-      seenUserIds.add(userId);
-    }
-
-    if (email) {
-      seenEmails.add(email);
-    }
-
-    inviteTargets.push({
-      user: user || null,
-      email: email || null,
-    });
-  };
-
-  for (const user of users) {
-    addInviteTarget(user);
-  }
-
-  for (const email of uniqueInviteEmails) {
-    addInviteTarget(emailUserMap.get(email) || null, email);
-  }
+  const inviteTargets = users.map((user) => ({
+    user,
+  }));
 
   if (inviteTargets.length + 1 > contestDoc.maxTeamSize) {
     return res.status(400).json({
@@ -1427,7 +1330,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
 
     inviteResults.push({
       userId: inviteResult.userId,
-      email: inviteResult.email,
       sent: inviteResult.sent,
       reason: inviteResult.reason || null,
       invitationId: inviteResult.invitation?._id || null,
@@ -1453,28 +1355,15 @@ export const inviteMember = asyncHandler(async (req, res) => {
     req.body.invitedUserId ||
     req.body.inviteUserId ||
     req.body.memberId;
-  const requestedEmail = normalizeEmail(
-    req.body.email || req.body.invitedEmail || req.body.userEmail || ""
-  );
 
-  if (!requestedUserId && !requestedEmail) {
+  if (!requestedUserId) {
     return res.status(400).json({
       success: false,
-      message: "User id or email is required",
+      message: "User id is required",
     });
   }
 
-  if (requestedEmail && !isValidEmail(requestedEmail)) {
-    return res.status(400).json({
-      success: false,
-      message: "Please provide a valid invite email",
-    });
-  }
-
-  if (
-    requestedUserId?.toString() === req.user._id.toString() ||
-    requestedEmail === normalizeEmail(req.user.email)
-  ) {
+  if (requestedUserId?.toString() === req.user._id.toString()) {
     return res.status(400).json({
       success: false,
       message: "You cannot invite yourself",
@@ -1531,11 +1420,11 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  const invitedUser = requestedUserId
-    ? await User.findById(requestedUserId).select("_id name email")
-    : await User.findOne({ email: requestedEmail }).select("_id name email");
+  const invitedUser = await User.findById(requestedUserId).select(
+    "_id name email"
+  );
 
-  if (requestedUserId && !invitedUser) {
+  if (!invitedUser) {
     return res.status(404).json({
       success: false,
       message: "Invited user not found",
@@ -1543,8 +1432,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
   }
 
   const inviteTarget = {
-    user: invitedUser || null,
-    email: invitedUser?.email || requestedEmail || null,
+    user: invitedUser,
   };
 
   const alreadyMember = inviteTarget.user
@@ -1577,8 +1465,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
   const existingInvite = await Invitation.findOne(
     buildPendingInvitationQuery({
       teamId: team._id,
-      userId: inviteTarget.user?._id,
-      email: inviteTarget.email,
+      userId: inviteTarget.user._id,
     })
   );
 
@@ -1635,13 +1522,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  const normalizedUserEmail = normalizeEmail(req.user.email);
-  const invitedUserMatches =
-    invitation.invitedUser?.toString() === req.user._id.toString();
-  const invitedEmailMatches =
-    !!invitation.email && normalizeEmail(invitation.email) === normalizedUserEmail;
-
-  if (!invitedUserMatches && !invitedEmailMatches) {
+  if (invitation.invitedUser.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
       message: "This invitation is not for you",
@@ -1715,22 +1596,14 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   });
 
   invitation.status = "accepted";
-  invitation.invitedUser = req.user._id;
-  invitation.email = normalizedUserEmail || invitation.email;
   await invitation.save();
-
-  const duplicateInviteTargets = [{ invitedUser: req.user._id }];
-
-  if (normalizedUserEmail) {
-    duplicateInviteTargets.push({ email: normalizedUserEmail });
-  }
 
   await Invitation.updateMany(
     {
       _id: { $ne: invitation._id },
       team: team._id,
       status: "pending",
-      $or: duplicateInviteTargets,
+      invitedUser: req.user._id,
     },
     {
       $set: {
@@ -1750,17 +1623,10 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
 // GET MY INVITATIONS
 // ==========================================
 export const getMyInvitations = asyncHandler(async (req, res) => {
-  const normalizedUserEmail = normalizeEmail(req.user.email);
-  const invitationRecipients = [{ invitedUser: req.user._id }];
-
-  if (normalizedUserEmail) {
-    invitationRecipients.push({ email: normalizedUserEmail });
-  }
-
   const invitations = await Invitation.find({
+    invitedUser: req.user._id,
     status: "pending",
     tokenExpiry: { $gt: new Date() },
-    $or: invitationRecipients,
   })
     .populate({
       path: "team",
@@ -1781,8 +1647,6 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
     return {
       ...invitationObject,
       acceptToken: invitationObject.token,
-      invitedEmail:
-        invitationObject.email || invitationObject.invitedUser?.email || null,
     };
   });
 
