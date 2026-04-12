@@ -863,3 +863,124 @@ export const getAllWinners = asyncHandler(async (req, res) => {
     })),
   });
 });
+
+export const updateEvaluation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { totalScore, remarks } = req.body;
+
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid submission id",
+    });
+  }
+
+  const submission = await Submission.findById(id)
+    .populate("user", "name email")
+    .populate("team", "teamName")
+    .populate("contest", "title isClosed");
+
+  if (!submission) {
+    return res.status(404).json({
+      success: false,
+      message: "Submission not found",
+    });
+  }
+
+  if (submission.contest?.isClosed) {
+    return res.status(400).json({
+      success: false,
+      message: "Winner already declared. Evaluation cannot be updated.",
+    });
+  }
+
+  if (submission.status !== "evaluated") {
+    return res.status(400).json({
+      success: false,
+      message: "This submission has not been evaluated yet",
+    });
+  }
+
+  if (totalScore !== undefined) {
+    const normalizedScore = normalizeScore(totalScore);
+
+    if (normalizedScore === null) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid totalScore greater than or equal to 0 is required",
+      });
+    }
+
+    submission.totalScore = normalizedScore;
+  }
+
+  if (remarks !== undefined) {
+    if (typeof remarks !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Remarks must be a string",
+      });
+    }
+
+    submission.remarks = remarks.trim();
+  }
+
+  await submission.save();
+  await submission.populate("contest", "title");
+
+  return res.status(200).json({
+    success: true,
+    message: "Evaluation updated successfully",
+    submission,
+  });
+});
+
+export const deleteEvaluation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid submission id",
+    });
+  }
+
+  const submission = await Submission.findById(id)
+    .populate("user", "name email")
+    .populate("team", "teamName")
+    .populate("contest", "title isClosed");
+
+  if (!submission) {
+    return res.status(404).json({
+      success: false,
+      message: "Submission not found",
+    });
+  }
+
+  if (submission.contest?.isClosed) {
+    return res.status(400).json({
+      success: false,
+      message: "Winner already declared. Evaluation cannot be deleted.",
+    });
+  }
+
+  if (submission.status !== "evaluated") {
+    return res.status(400).json({
+      success: false,
+      message: "This submission is not evaluated yet",
+    });
+  }
+
+  submission.totalScore = 0;
+  submission.remarks = "";
+  submission.status = "pending";
+
+  await submission.save();
+  await submission.populate("contest", "title");
+
+  return res.status(200).json({
+    success: true,
+    message: "Evaluation deleted successfully",
+    submission,
+  });
+});

@@ -1,140 +1,158 @@
-// import express from "express";
-// import {
-//   submitProject,
-//   getSubmissionsByContest,
-//   getMySubmissions,
-//   evaluateSubmission,
-//   declareWinner,
-//   getContestParticipantCount,
-//   getAllContestParticipantCount,
-//   getMyJoinedContestCount
-// } from "../controllers/submission.controller.js";
-// import { verifyJWT } from "../middleware/checkAuthUser.js ";
-// import { authorizeRoles } from "../middleware/checkAuthUser.js";
+  // import express from "express";
+  // import {
+  //   submitProject,
+  //   getSubmissionsByContest,
+  //   getMySubmissions,
+  //   evaluateSubmission,
+  //   declareWinner,
+  //   getContestParticipantCount,
+  //   getAllContestParticipantCount,
+  //   getMyJoinedContestCount
+  // } from "../controllers/submission.controller.js";
+  // import { verifyJWT } from "../middleware/checkAuthUser.js ";
+  // import { authorizeRoles } from "../middleware/checkAuthUser.js";
 
-// const submissionRouter = express.Router();
+  // const submissionRouter = express.Router();
 
-// submissionRouter.post("/", verifyJWT, submitProject);
+  // submissionRouter.post("/", verifyJWT, submitProject);
 
-// submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
+  // submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
 
-// submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount); // ekjon koto gulo contest a join koreche
-
-
-// submissionRouter.get("/contest/:contestId", getSubmissionsByContest);
-
-// submissionRouter.get("/contest/:contestId/participant-count", getContestParticipantCount); //kotojon ekta contest a participatet koreche
-
-// submissionRouter.get("/participant-count", getAllContestParticipantCount); //total kotojon All contest a participates koreche 
+  // submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount); // ekjon koto gulo contest a join koreche
 
 
-// submissionRouter.put("/:id/evaluate", verifyJWT, authorizeRoles("admin"),evaluateSubmission);
+  // submissionRouter.get("/contest/:contestId", getSubmissionsByContest);
 
-// submissionRouter.put("/contest/:contestId/declare-winner", authorizeRoles("admin"), verifyJWT, declareWinner);
+  // submissionRouter.get("/contest/:contestId/participant-count", getContestParticipantCount); //kotojon ekta contest a participatet koreche
 
-// export default submissionRouter;
+  // submissionRouter.get("/participant-count", getAllContestParticipantCount); //total kotojon All contest a participates koreche 
 
-import express from "express";
-import {
-  submitProject,
-  getSubmissionsByContest,
-  getMySubmissions,
-  evaluateSubmission,
-  declareWinner,
-  // getContestParticipantCount,
-  getAllContestParticipantCount,
-  getMyJoinedContestCount,
-  getTotalSubmittedContests,
-  getContestSubmissionSummary,
-  getSingleContestSubmissionReport,
-  getEvaluatedUsersByContest,
-  getAllWinners,
-} from "../controllers/submission.controller.js";
 
-import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
+  // submissionRouter.put("/:id/evaluate", verifyJWT, authorizeRoles("admin"),evaluateSubmission);
 
-const submissionRouter = express.Router();
+  // submissionRouter.put("/contest/:contestId/declare-winner", authorizeRoles("admin"), verifyJWT, declareWinner);
 
-// ===============================
-// SUBMIT
-// ===============================
-submissionRouter.post("/submit", verifyJWT, submitProject);
+  // export default submissionRouter;
 
-// ===============================
-// MY ROUTES
-// ===============================
-submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
-submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount);
+  import express from "express";
+  import {
+    submitProject,
+    getSubmissionsByContest,
+    getMySubmissions,
+    evaluateSubmission,
+    declareWinner,
+    // getContestParticipantCount,
+    getAllContestParticipantCount,
+    getMyJoinedContestCount,
+    getTotalSubmittedContests,
+    getContestSubmissionSummary,
+    getSingleContestSubmissionReport,
+    getEvaluatedUsersByContest,
+    getAllWinners,
+    updateEvaluation,
+    deleteEvaluation,
+  } from "../controllers/submission.controller.js";
 
-// ===============================
-// GENERAL CONTEST ROUTES
-// ===============================
-submissionRouter.get("/participant-count", getAllContestParticipantCount);
-submissionRouter.get("/contest/:contestId", getSubmissionsByContest);
-// submissionRouter.get(
-//   "/contest/:contestId/participant-count",
-//   getContestParticipantCount
-// );
+  import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
 
-// ===============================
-// ADMIN EVALUATION ROUTES
-// ===============================
+  const submissionRouter = express.Router();
 
-// evaluate one submission
+  // ===============================
+  // SUBMIT
+  // ===============================
+  submissionRouter.post("/submit", verifyJWT, submitProject);
+
+  // ===============================
+  // MY ROUTES
+  // ===============================
+  submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
+  submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount);
+
+  // ===============================
+  // GENERAL CONTEST ROUTES
+  // ===============================
+  submissionRouter.get("/participant-count", getAllContestParticipantCount);
+  submissionRouter.get("/contest/:contestId", getSubmissionsByContest);
+  // submissionRouter.get(
+  //   "/contest/:contestId/participant-count",
+  //   getContestParticipantCount
+  // );
+
+  // ===============================
+  // ADMIN EVALUATION ROUTES
+  // ===============================
+
+  // evaluate one submission
+  submissionRouter.put(
+    "/evaluate/:id",
+    verifyJWT,
+    authorizeRoles("admin"),
+    evaluateSubmission
+  );
+
+  // declare winner
+  submissionRouter.put(
+    "/contest/:contestId/declare-winner",
+    verifyJWT,
+    authorizeRoles("admin"),
+    declareWinner
+  );
+
+  // all contests with full submission details
+  submissionRouter.get(
+    "/submitted-contests-count",
+    verifyJWT,
+    authorizeRoles("admin"),
+    getTotalSubmittedContests
+  );
+
+  // contest summary with evaluated/pending counts
+  submissionRouter.get(
+    "/contest-summary",
+    verifyJWT,
+    authorizeRoles("admin"),
+    getContestSubmissionSummary
+  );
+
+  // single contest full report
+  submissionRouter.get(
+    "/contest-report/:contestId",
+    verifyJWT,
+    authorizeRoles("admin"),
+    getSingleContestSubmissionReport
+  );
+
+  // evaluated users details in one contest
+  submissionRouter.get(
+    "/contest/:contestId/evaluated-users",
+    verifyJWT,
+    authorizeRoles("admin"),
+    getEvaluatedUsersByContest
+  );
+
+  submissionRouter.get(
+    "/winners",
+    verifyJWT,
+    authorizeRoles("admin"),
+    getAllWinners
+  );
+
+// update evaluation
 submissionRouter.put(
-  "/evaluate/:id",
+  "/evaluation/:id",
   verifyJWT,
   authorizeRoles("admin"),
-  evaluateSubmission
+  updateEvaluation
 );
 
-// declare winner
-submissionRouter.put(
-  "/contest/:contestId/declare-winner",
+// delete evaluation / reset to pending
+submissionRouter.delete(
+  "/evaluation/:id",
   verifyJWT,
   authorizeRoles("admin"),
-  declareWinner
+  deleteEvaluation
 );
 
-// all contests with full submission details
-submissionRouter.get(
-  "/submitted-contests-count",
-  verifyJWT,
-  authorizeRoles("admin"),
-  getTotalSubmittedContests
-);
+  export default submissionRouter;
 
-// contest summary with evaluated/pending counts
-submissionRouter.get(
-  "/contest-summary",
-  verifyJWT,
-  authorizeRoles("admin"),
-  getContestSubmissionSummary
-);
-
-// single contest full report
-submissionRouter.get(
-  "/contest-report/:contestId",
-  verifyJWT,
-  authorizeRoles("admin"),
-  getSingleContestSubmissionReport
-);
-
-// evaluated users details in one contest
-submissionRouter.get(
-  "/contest/:contestId/evaluated-users",
-  verifyJWT,
-  authorizeRoles("admin"),
-  getEvaluatedUsersByContest
-);
-
-submissionRouter.get(
-  "/winners",
-  verifyJWT,
-  authorizeRoles("admin"),
-  getAllWinners
-);
-
-export default submissionRouter;
-
-console.log("Submission Router is working");
+  console.log("Submission Router is working");
