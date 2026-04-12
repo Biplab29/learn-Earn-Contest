@@ -133,6 +133,7 @@ teamRouter.get("/my-teams", verifyJWT, getMyTeams);
 
 // get my invitations
 teamRouter.get("/my-invitations", verifyJWT, getMyInvitations);
+teamRouter.get("/invitations", verifyJWT, getMyInvitations);
 
 // get pending teams for admin
 teamRouter.get(
@@ -143,13 +144,17 @@ teamRouter.get(
 );
 
 // confirm invitation by token
+teamRouter.post("/invite/confirm", verifyJWT, confirmInvitation);
 teamRouter.post("/invite/confirm/:token", verifyJWT, confirmInvitation);
+teamRouter.post("/invitations/:id/accept", verifyJWT, confirmInvitation);
+teamRouter.patch("/invitations/:id/accept", verifyJWT, confirmInvitation);
 
 // get teams by contest
 teamRouter.get("/contest/:contestId", getTeamsByContest);
 
 // invite member by userId
 teamRouter.post("/:id/invite", verifyJWT, inviteMember);
+teamRouter.post("/:id/invitations", verifyJWT, inviteMember);
 
 // delete team
 teamRouter.delete("/:id", verifyJWT, deleteTeam);
