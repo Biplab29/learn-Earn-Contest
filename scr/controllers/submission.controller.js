@@ -836,6 +836,97 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
 // });
 
 
+// export const declareWinner = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+
+//   if (!isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid contestId",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   const submissions = await Submission.find({ contest: contestId })
+//     .populate("user", "name email")
+//     .populate("team", "teamName")
+//     .populate("contest", "title");
+
+//   if (submissions.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No submissions found to evaluate.",
+//     });
+//   }
+
+//   const evaluatedSubmissions = submissions
+//     .filter((submission) => submission.status === "evaluated")
+//     .sort((a, b) => {
+//       if (b.totalScore !== a.totalScore) {
+//         return b.totalScore - a.totalScore;
+//       }
+//       return new Date(a.createdAt) - new Date(b.createdAt);
+//     });
+
+//   if (evaluatedSubmissions.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+//     });
+//   }
+
+//   const pendingSubmissions = submissions.filter(
+//     (submission) => submission.status !== "evaluated"
+//   );
+
+//   if (!contest.isClosed && pendingSubmissions.length > 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Evaluate all submissions before declaring the winner.",
+//       pendingSubmissions: pendingSubmissions.length,
+//     });
+//   }
+
+//   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+//   const winnerAlreadyDeclared = contest.isClosed;
+
+//   if (!winnerAlreadyDeclared) {
+//     contest.isClosed = true;
+//     contest.status = "completed";
+//     contest.winner = leaderboard[0]._id;
+//     await contest.save();
+//   }
+
+//   const updatedContest = await Contest.findById(contestId).populate({
+//     path: "winner",
+//     populate: [
+//       { path: "user", select: "name email" },
+//       { path: "team", select: "teamName" },
+//     ],
+//   });
+
+//   return res.status(200).json({
+//     success: true,
+//     message: winnerAlreadyDeclared
+//       ? "Winner already declared for this contest"
+//       : "Winner declared successfully",
+//     contestId: contest._id,
+//     contestTitle: contest.title,
+//     winner: updatedContest?.winner || leaderboard[0],
+//     leaderboard,
+//     totalEvaluatedSubmissions: leaderboard.length,
+//   });
+// });
+
+
 export const declareWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -855,6 +946,36 @@ export const declareWinner = asyncHandler(async (req, res) => {
     });
   }
 
+  const now = new Date();
+  const deadline = new Date(contest.deadline);
+
+  // before deadline -> cannot declare winner
+  if (now < deadline) {
+    return res.status(400).json({
+      success: false,
+      message: "Winner can be declared only after contest deadline.",
+    });
+  }
+
+  // already declared
+  if (contest.isClosed) {
+    const alreadyClosedContest = await Contest.findById(contestId).populate({
+      path: "winner",
+      populate: [
+        { path: "user", select: "name email" },
+        { path: "team", select: "teamName" },
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Winner already declared for this contest",
+      contestId: alreadyClosedContest._id,
+      contestTitle: alreadyClosedContest.title,
+      winner: alreadyClosedContest.winner,
+    });
+  }
+
   const submissions = await Submission.find({ contest: contestId })
     .populate("user", "name email")
     .populate("team", "teamName")
@@ -863,7 +984,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
   if (submissions.length === 0) {
     return res.status(400).json({
       success: false,
-      message: "No submissions found to evaluate.",
+      message: "No submissions found.",
     });
   }
 
@@ -887,7 +1008,8 @@ export const declareWinner = asyncHandler(async (req, res) => {
     (submission) => submission.status !== "evaluated"
   );
 
-  if (!contest.isClosed && pendingSubmissions.length > 0) {
+  // strict rule -> all submissions must be evaluated
+  if (pendingSubmissions.length > 0) {
     return res.status(400).json({
       success: false,
       message: "Evaluate all submissions before declaring the winner.",
@@ -896,14 +1018,11 @@ export const declareWinner = asyncHandler(async (req, res) => {
   }
 
   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
-  const winnerAlreadyDeclared = contest.isClosed;
 
-  if (!winnerAlreadyDeclared) {
-    contest.isClosed = true;
-    contest.status = "completed";
-    contest.winner = leaderboard[0]._id;
-    await contest.save();
-  }
+  contest.isClosed = true;
+  contest.status = "completed";
+  contest.winner = leaderboard[0]._id;
+  await contest.save();
 
   const updatedContest = await Contest.findById(contestId).populate({
     path: "winner",
@@ -915,17 +1034,14 @@ export const declareWinner = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: winnerAlreadyDeclared
-      ? "Winner already declared for this contest"
-      : "Winner declared successfully",
-    contestId: contest._id,
-    contestTitle: contest.title,
-    winner: updatedContest?.winner || leaderboard[0],
+    message: "Winner declared successfully",
+    contestId: updatedContest._id,
+    contestTitle: updatedContest.title,
+    winner: updatedContest.winner,
     leaderboard,
     totalEvaluatedSubmissions: leaderboard.length,
   });
 });
-
 
 export const getAllWinners = asyncHandler(async (req, res) => {
   const contests = await Contest.find({
