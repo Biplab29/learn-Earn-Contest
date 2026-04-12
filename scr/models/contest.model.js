@@ -109,7 +109,7 @@ const contestSchema = new mongoose.Schema(
 
     participationType: {
       type: String,
-      enum: ['solo', 'team', 'both'],
+      enum: ['solo', 'team'],
       default: 'solo',
       required: true
     },
