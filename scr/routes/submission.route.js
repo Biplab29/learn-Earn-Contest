@@ -53,6 +53,7 @@
     deleteWinner,
     updateEvaluation,
     deleteEvaluation,
+    updateSubmission,
     deleteSubmission,
   } from "../controllers/submission.controller.js";
 
@@ -170,10 +171,21 @@ submissionRouter.delete(
   deleteEvaluation
 );
 
+submissionRouter.put(
+  "/:id",
+  verifyJWT,
+  updateSubmission
+);
+
+submissionRouter.patch(
+  "/:id",
+  verifyJWT,
+  updateSubmission
+);
+
 submissionRouter.delete(
   "/:id",
   verifyJWT,
-  authorizeRoles("admin"),
   deleteSubmission
 );
 

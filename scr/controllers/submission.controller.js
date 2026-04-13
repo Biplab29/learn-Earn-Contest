@@ -30,6 +30,32 @@ const addSubmissionRanks = (submissions) =>
     ...submission.toObject(),
   }));
 
+const canManageSubmission = async ({ submission, user }) => {
+  if (!submission || !user) {
+    return false;
+  }
+
+  if (user.role === "admin") {
+    return true;
+  }
+
+  const submissionUserId = submission.user?._id || submission.user;
+  const submissionTeamId = submission.team?._id || submission.team;
+  const contestId = submission.contest?._id || submission.contest;
+
+  if (!submissionTeamId) {
+    return submissionUserId?.toString() === user._id.toString();
+  }
+
+  const teamParticipation = await Participation.findOne({
+    user: user._id,
+    contest: contestId,
+    team: submissionTeamId,
+  }).select("_id");
+
+  return !!teamParticipation;
+};
+
 const winnerPopulate = {
   path: "winner",
   populate: [
@@ -818,7 +844,7 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
 //   if (!winnerAlreadyDeclared) {
 //     contest.isClosed = true;
 //     contest.status = "completed";
-//     contest.winner = leaderboard[0]._id; // ✅ save winner in DB
+//     contest.winner = leaderboard[0]._id; // âœ… save winner in DB
 //     await contest.save();
 //   }
 
@@ -1280,6 +1306,104 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
   });
 });
 
+export const updateSubmission = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { githubLink, liveUrl } = req.body;
+
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid submission id",
+    });
+  }
+
+  const submission = await Submission.findById(id)
+    .populate("contest", "title startDate deadline isClosed")
+    .populate("user", "name email")
+    .populate("team", "teamName");
+
+  if (!submission) {
+    return res.status(404).json({
+      success: false,
+      message: "Submission not found",
+    });
+  }
+
+  const canManage = await canManageSubmission({
+    submission,
+    user: req.user,
+  });
+
+  if (!canManage) {
+    return res.status(403).json({
+      success: false,
+      message: "You are not allowed to update this submission",
+    });
+  }
+
+  if (submission.contest?.isClosed) {
+    return res.status(400).json({
+      success: false,
+      message: "Winner already declared. Submission cannot be updated.",
+    });
+  }
+
+  if (req.user.role !== "admin" && !isContestActive(submission.contest)) {
+    return res.status(400).json({
+      success: false,
+      message: "Submission can only be updated while the contest is active",
+    });
+  }
+
+  if (submission.status === "evaluated" && req.user.role !== "admin") {
+    return res.status(400).json({
+      success: false,
+      message: "Evaluated submission cannot be updated",
+    });
+  }
+
+  const nextGithubLink =
+    githubLink !== undefined ? githubLink.trim() : submission.githubLink;
+  const nextLiveUrl =
+    liveUrl !== undefined ? liveUrl?.trim() || "" : submission.liveUrl || "";
+
+  if (!nextGithubLink) {
+    return res.status(400).json({
+      success: false,
+      message: "GitHub link is required",
+    });
+  }
+
+  const linksChanged =
+    nextGithubLink !== (submission.githubLink || "") ||
+    nextLiveUrl !== (submission.liveUrl || "");
+
+  submission.githubLink = nextGithubLink;
+  submission.liveUrl = nextLiveUrl;
+
+  const shouldResetEvaluation =
+    req.user.role === "admin" &&
+    submission.status === "evaluated" &&
+    linksChanged;
+
+  if (shouldResetEvaluation) {
+    submission.totalScore = 0;
+    submission.remarks = "";
+    submission.status = "pending";
+  }
+
+  await submission.save();
+  await submission.populate("contest", "title");
+
+  return res.status(200).json({
+    success: true,
+    message: shouldResetEvaluation
+      ? "Submission updated successfully and evaluation reset to pending"
+      : "Submission updated successfully",
+    submission,
+  });
+});
+
 export const deleteSubmission = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -1290,10 +1414,10 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
     });
   }
 
-  const submission = await Submission.findById(id).populate(
-    "contest",
-    "title isClosed"
-  );
+  const submission = await Submission.findById(id)
+    .populate("contest", "title startDate deadline isClosed")
+    .populate("user", "name email")
+    .populate("team", "teamName");
 
   if (!submission) {
     return res.status(404).json({
@@ -1302,10 +1426,29 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
     });
   }
 
+  const canManage = await canManageSubmission({
+    submission,
+    user: req.user,
+  });
+
+  if (!canManage) {
+    return res.status(403).json({
+      success: false,
+      message: "You are not allowed to delete this submission",
+    });
+  }
+
   if (submission.contest?.isClosed) {
     return res.status(400).json({
       success: false,
       message: "Winner already declared. Submission cannot be deleted.",
+    });
+  }
+
+  if (req.user.role !== "admin" && !isContestActive(submission.contest)) {
+    return res.status(400).json({
+      success: false,
+      message: "Submission can only be deleted while the contest is active",
     });
   }
 
@@ -1344,3 +1487,4 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
     contestId,
   });
 });
+
