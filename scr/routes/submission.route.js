@@ -51,6 +51,7 @@
     getAllWinners,
     updateWinner,
     deleteWinner,
+    updateWinnerDetails,
     updateEvaluation,
     deleteEvaluation,
     updateSubmission,
@@ -155,6 +156,12 @@
     deleteWinner
   );
 
+  submissionRouter.put(
+    "/contest/:contestId/winner-details",
+    verifyJWT,
+    authorizeRoles("admin"),
+    updateWinnerDetails
+  );
 // update evaluation
 submissionRouter.put(
   "/evaluation/:id",
