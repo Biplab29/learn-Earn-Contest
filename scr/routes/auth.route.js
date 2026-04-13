@@ -16,6 +16,8 @@ userRouter.get("/users", verifyJWT, getAllUsers);
 userRouter.post("/user/logout", verifyJWT, logoutUser);
 userRouter.post("/forgot-password", forgotPassword);
 userRouter.post("/reset-password/:token", resetPassword);
+//userRouter.patch("/reset-password/:token", resetPassword);
+userRouter.put("/reset-password/:token", resetPassword);
 userRouter.delete("/delete/user/:id", verifyJWT, authorizeRoles("admin"), deleteUser);
 
 export default userRouter;

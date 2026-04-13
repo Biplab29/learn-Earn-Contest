@@ -49,6 +49,18 @@ app.get("/", (req, res) => {
   res.json({ message: "Server working" });
 });
 
+app.use((err, req, res, next) => {
+  console.error("Unhandled server error:", err.message);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  return res.status(err.status || 500).json({
+    message: err.message || "Internal server error",
+  });
+});
+
 
 
 const PORT = process.env.PORT || 8000;

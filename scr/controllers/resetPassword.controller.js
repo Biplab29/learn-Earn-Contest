@@ -5,11 +5,25 @@ import { User } from "../models/user.model.js";
 
 export const resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.params;
-  const { password } = req.body;
+  const password = req.body.password || req.body.newPassword;
+  const confirmPassword =
+    req.body.confirmPassword || req.body.confirmNewPassword;
+
+  if (!token) {
+    return res.status(400).json({
+      message: "Reset token is required",
+    });
+  }
 
   if (!password) {
     return res.status(400).json({
       message: "Password is required",
+    });
+  }
+
+  if (confirmPassword && password !== confirmPassword) {
+    return res.status(400).json({
+      message: "Passwords do not match",
     });
   }
 

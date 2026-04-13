@@ -7,6 +7,11 @@ import { User } from "../models/user.model.js";
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const normalizedEmail = email?.toLowerCase().trim();
+  const frontendUrl = (
+    process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    "http://localhost:5173"
+  ).replace(/\/+$/, "");
 
   if (!normalizedEmail) {
     return res.status(400).json({ message: "Email is required" });
@@ -31,7 +36,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   
-  const resetUrl = `https://learnandearnweb.netlify.app/reset-password/${resetToken}`;
+  const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
   
   // const message = `
@@ -58,7 +63,17 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     </div>
   `;
 
-  await sendEmail(user.email, "Password Reset", message);
+  try {
+    await sendEmail(user.email, "Password Reset", message);
+  } catch (error) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(500).json({
+      message: error.message || "Failed to send reset email",
+    });
+  }
 
   res.status(200).json({
     message: "Reset link sent to your email",

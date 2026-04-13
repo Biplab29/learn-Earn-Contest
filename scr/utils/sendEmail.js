@@ -1,21 +1,29 @@
 import nodemailer from "nodemailer";
 
 export const sendEmail = async (to, subject, html) => {
+  const emailHost = process.env.EMAIL_HOST?.trim();
+  const emailPort = Number(process.env.EMAIL_PORT || 587);
+  const emailUser = process.env.EMAIL_USER?.trim();
+  const emailPass = process.env.EMAIL_PASS?.replace(/\s+/g, "");
+
+  if (!emailHost || !emailPort || !emailUser || !emailPass) {
+    throw new Error("Email configuration is incomplete");
+  }
+
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,          // smtp.gmail.com
-    port: parseInt(process.env.EMAIL_PORT), // must be number: 587
-    secure: false,                          // false for port 587 (STARTTLS)
+    host: emailHost,
+    port: emailPort,
+    secure: emailPort === 465,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,        // Gmail App Password (16 chars)
+      user: emailUser,
+      pass: emailPass,
     },
     tls: {
-      rejectUnauthorized: false,           // avoids cert issues on some servers
+      rejectUnauthorized: false,
     },
   });
 
   try {
-    // Verify connection first so errors are clear
     await transporter.verify();
   } catch (verifyError) {
     console.error("❌ Email transporter verification failed:", verifyError.message);
@@ -23,7 +31,7 @@ export const sendEmail = async (to, subject, html) => {
   }
 
   const info = await transporter.sendMail({
-    from: `"Learn & Earn Contest" <${process.env.EMAIL_USER}>`,
+    from: `"Learn & Earn Contest" <${emailUser}>`,
     to,
     subject,
     html,
