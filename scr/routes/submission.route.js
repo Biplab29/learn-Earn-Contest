@@ -49,6 +49,8 @@
     getSingleContestSubmissionReport,
     getEvaluatedUsersByContest,
     getAllWinners,
+    updateWinner,
+    deleteWinner,
     updateEvaluation,
     deleteEvaluation,
     deleteSubmission,
@@ -136,6 +138,20 @@
     verifyJWT,
     authorizeRoles("admin"),
     getAllWinners
+  );
+
+  submissionRouter.put(
+    "/contest/:contestId/winner",
+    verifyJWT,
+    authorizeRoles("admin"),
+    updateWinner
+  );
+
+  submissionRouter.delete(
+    "/contest/:contestId/winner",
+    verifyJWT,
+    authorizeRoles("admin"),
+    deleteWinner
   );
 
 // update evaluation

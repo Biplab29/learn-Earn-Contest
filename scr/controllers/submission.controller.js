@@ -30,6 +30,14 @@ const addSubmissionRanks = (submissions) =>
     ...submission.toObject(),
   }));
 
+const winnerPopulate = {
+  path: "winner",
+  populate: [
+    { path: "user", select: "name email" },
+    { path: "team", select: "teamName" },
+  ],
+};
+
 // ================================
 // Submit Project
 // ================================
@@ -959,13 +967,9 @@ export const declareWinner = asyncHandler(async (req, res) => {
 
   // already declared
   if (contest.isClosed) {
-    const alreadyClosedContest = await Contest.findById(contestId).populate({
-      path: "winner",
-      populate: [
-        { path: "user", select: "name email" },
-        { path: "team", select: "teamName" },
-      ],
-    });
+    const alreadyClosedContest = await Contest.findById(contestId).populate(
+      winnerPopulate
+    );
 
     return res.status(200).json({
       success: true,
@@ -1024,13 +1028,9 @@ export const declareWinner = asyncHandler(async (req, res) => {
   contest.winner = leaderboard[0]._id;
   await contest.save();
 
-  const updatedContest = await Contest.findById(contestId).populate({
-    path: "winner",
-    populate: [
-      { path: "user", select: "name email" },
-      { path: "team", select: "teamName" },
-    ],
-  });
+  const updatedContest = await Contest.findById(contestId).populate(
+    winnerPopulate
+  );
 
   return res.status(200).json({
     success: true,
@@ -1047,13 +1047,7 @@ export const getAllWinners = asyncHandler(async (req, res) => {
   const contests = await Contest.find({
     winner: { $exists: true, $ne: null },
   })
-    .populate({
-      path: "winner",
-      populate: [
-        { path: "user", select: "name email" },
-        { path: "team", select: "teamName" },
-      ],
-    })
+    .populate(winnerPopulate)
     .select("title status startDate deadline winner")
     .sort({ createdAt: -1 });
 
@@ -1069,6 +1063,99 @@ export const getAllWinners = asyncHandler(async (req, res) => {
       deadline: contest.deadline,
       winner: contest.winner,
     })),
+  });
+});
+
+export const updateWinner = asyncHandler(async (req, res) => {
+  const { contestId } = req.params;
+  const winnerSubmissionId =
+    req.body.winnerSubmissionId || req.body.submissionId || req.body.winnerId;
+
+  if (!isValidObjectId(contestId) || !isValidObjectId(winnerSubmissionId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid contestId and winner submission id are required",
+    });
+  }
+
+  const contest = await Contest.findById(contestId);
+
+  if (!contest) {
+    return res.status(404).json({
+      success: false,
+      message: "Contest not found",
+    });
+  }
+
+  const winnerSubmission = await Submission.findOne({
+    _id: winnerSubmissionId,
+    contest: contestId,
+    status: "evaluated",
+  })
+    .populate("user", "name email")
+    .populate("team", "teamName");
+
+  if (!winnerSubmission) {
+    return res.status(404).json({
+      success: false,
+      message: "Evaluated submission not found for this contest",
+    });
+  }
+
+  contest.winner = winnerSubmission._id;
+  contest.isClosed = true;
+  contest.status = "completed";
+  await contest.save();
+
+  const updatedContest = await Contest.findById(contestId).populate(
+    winnerPopulate
+  );
+
+  return res.status(200).json({
+    success: true,
+    message: "Winner updated successfully",
+    contestId: updatedContest._id,
+    contestTitle: updatedContest.title,
+    winner: updatedContest.winner,
+  });
+});
+
+export const deleteWinner = asyncHandler(async (req, res) => {
+  const { contestId } = req.params;
+
+  if (!isValidObjectId(contestId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid contestId is required",
+    });
+  }
+
+  const contest = await Contest.findById(contestId);
+
+  if (!contest) {
+    return res.status(404).json({
+      success: false,
+      message: "Contest not found",
+    });
+  }
+
+  if (!contest.winner) {
+    return res.status(400).json({
+      success: false,
+      message: "No winner declared for this contest",
+    });
+  }
+
+  contest.winner = null;
+  contest.isClosed = false;
+  contest.status = getContestStatus(contest);
+  await contest.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Winner deleted successfully",
+    contestId: contest._id,
+    contestTitle: contest.title,
   });
 });
 
