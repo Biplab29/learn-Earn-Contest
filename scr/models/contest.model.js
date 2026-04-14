@@ -1,4 +1,163 @@
 
+// import mongoose from "mongoose";
+
+// export const getContestStatus = ({ startDate, deadline, isClosed = false }) => {
+//   const now = new Date();
+
+//   if (isClosed) return "completed";
+//   if (new Date(startDate) <= now && new Date(deadline) > now) return "active";
+//   if (new Date(deadline) <= now) return "completed";
+//   return "upcoming";
+// };
+
+// const contestSchema = new mongoose.Schema(
+//   {
+//     title: {
+//       type: String,
+//       required: true,
+//       trim: true
+//     },
+
+//     description: {
+//       type: String,
+//       trim: true
+//     },
+//     image: {
+//       type: String
+//     },
+
+//     imagePublicId: {
+//       type: String,
+//       default: ""
+//     },
+
+//     projectBriefing: {
+//       type: String,
+//       default: ""
+//     },
+
+//     projectBriefingPublicId: {
+//       type: String,
+//       default: ""
+//     },
+
+//     projectBriefingOriginalName: {
+//       type: String,
+//       default: ""
+//     },
+
+//     startDate: {
+//       type: Date,
+//       required: true
+//     },
+
+//     deadline: {
+//       type: Date,
+//       required: true
+//     },
+
+//     createdBy: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "User",
+//       required: true
+//     },
+
+//     status: {
+//       type: String,
+//       enum: ["upcoming", "active", "completed"],
+//       default: "upcoming"
+//     },
+
+//     winner: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Submission",
+//       default: null,
+//     },
+    
+//     isClosed: {
+//       type: Boolean,
+//       default: false
+//     },
+
+//     participationType: {
+//       type: String,
+//       enum: ['solo', 'team', 'both'],
+//       default: 'solo',
+//       required: true
+//     },
+
+//     maxTeamSize: {
+//       type: Number,
+//       min: 1,
+//       default: 1
+//     },
+
+//     rewards: [{
+//       type: String,
+//       required: true
+//     }],
+
+
+//   },
+
+//   { timestamps: true }
+// );
+
+// contestSchema.pre("validate", function () {
+//   if (this.participationType === "solo") {
+//     this.maxTeamSize = 1;
+//   }
+
+//   this.status = getContestStatus(this);
+// });
+
+// contestSchema.path("maxTeamSize").validate(function (value) {
+//   if (this.participationType === "team" || this.participationType === "both") {
+//     return value >= 2;
+//   }
+
+//   return value === 1;
+// }, "Team contests must allow at least 2 members, and solo contests must have a maxTeamSize of 1.");
+
+// contestSchema.methods.syncStatus = function () {
+//   this.status = getContestStatus(this);
+//   return this.status;
+// };
+
+// contestSchema.statics.syncStatuses = async function (filter = {}) {
+//   const contests = await this.find(filter).select("_id startDate deadline isClosed status");
+
+//   const operations = contests
+//     .map((contest) => {
+//       const nextStatus = getContestStatus(contest);
+
+//       if (contest.status === nextStatus) {
+//         return null;
+//       }
+
+//       return {
+//         updateOne: {
+//           filter: { _id: contest._id },
+//           update: {
+//             $set: { status: nextStatus }
+//           }
+//         }
+//       };
+//     })
+//     .filter(Boolean);
+
+//   if (operations.length > 0) {
+//     await this.bulkWrite(operations);
+//   }
+
+//   return operations.length;
+// };
+
+// export const Contest = mongoose.model("Contest", contestSchema);
+
+// console.log("contest model is working");
+
+
 import mongoose from "mongoose";
 
 export const getContestStatus = ({ startDate, deadline, isClosed = false }) => {
@@ -18,10 +177,18 @@ const contestSchema = new mongoose.Schema(
       trim: true
     },
 
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+      enum: ["Web Dev", "AI/ML", "App Dev", "Design", "Data Science"]
+    },
+
     description: {
       type: String,
       trim: true
     },
+
     image: {
       type: String
     },
@@ -73,7 +240,7 @@ const contestSchema = new mongoose.Schema(
       ref: "Submission",
       default: null,
     },
-    
+
     isClosed: {
       type: Boolean,
       default: false
@@ -81,8 +248,8 @@ const contestSchema = new mongoose.Schema(
 
     participationType: {
       type: String,
-      enum: ['solo', 'team', 'both'],
-      default: 'solo',
+      enum: ["solo", "team", "both"],
+      default: "solo",
       required: true
     },
 
@@ -96,10 +263,7 @@ const contestSchema = new mongoose.Schema(
       type: String,
       required: true
     }],
-
-
   },
-
   { timestamps: true }
 );
 
@@ -138,9 +302,7 @@ contestSchema.statics.syncStatuses = async function (filter = {}) {
       return {
         updateOne: {
           filter: { _id: contest._id },
-          update: {
-            $set: { status: nextStatus }
-          }
+          update: { $set: { status: nextStatus } }
         }
       };
     })
