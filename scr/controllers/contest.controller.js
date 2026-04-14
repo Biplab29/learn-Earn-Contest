@@ -1,151 +1,193 @@
 
 import asyncHandler from "../middleware/asyncHandler.js";
+import cloudinary from "../config/cloudinary.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
+import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
 
-// helper for valid date
 const isValidDate = (date) => {
   return date instanceof Date && !isNaN(date.getTime());
 };
 
-// ===============================
-// CREATE CONTEST
-// ===============================
+const getUploadedFile = (req, fieldName) => {
+  const fieldFiles = req.files?.[fieldName];
 
+  if (!Array.isArray(fieldFiles) || fieldFiles.length === 0) {
+    return null;
+  }
 
-// export const createContest = asyncHandler(async (req, res) => {
-//   const { title, description, startDate, deadline, rewards } = req.body;
-//   const image = req.file?.path || "";
+  return fieldFiles[0];
+};
 
-//   console.log("BODY =>", req.body);
-//   console.log("USER =>", req.user);
-//   console.log("FILE =>", req.file);
+const normalizeRewards = (rewards) => {
+  if (Array.isArray(rewards)) {
+    return rewards
+      .map((reward) => `${reward}`.trim())
+      .filter(Boolean);
+  }
 
-//   if (!title || !description || !startDate || !deadline) {
-//     return res.status(400).json({
-//       message: "Title, description, startDate and deadline are required",
-//     });
-//   }
+  if (typeof rewards === "string") {
+    const trimmedRewards = rewards.trim();
 
-//   if (!req.user || !req.user._id) {
-//     return res.status(401).json({
-//       message: "Unauthorized user",
-//     });
-//   }
+    if (!trimmedRewards) {
+      return [];
+    }
 
-//   const parsedStartDate = new Date(startDate);
-//   const parsedDeadline = new Date(deadline);
+    if (trimmedRewards.startsWith("[")) {
+      try {
+        const parsedRewards = JSON.parse(trimmedRewards);
 
-//   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
-//     return res.status(400).json({
-//       message: "Invalid startDate or deadline format",
-//     });
-//   }
+        if (Array.isArray(parsedRewards)) {
+          return parsedRewards
+            .map((reward) => `${reward}`.trim())
+            .filter(Boolean);
+        }
+      } catch (error) {
+        console.warn("Unable to parse rewards JSON:", error.message);
+      }
+    }
 
-//   if (parsedStartDate >= parsedDeadline) {
-//     return res.status(400).json({
-//       message: "Deadline must be greater than startDate",
-//     });
-//   }
+    return [trimmedRewards];
+  }
 
-//   const contest = await Contest.create({
-//     title: title.trim(),
-//     description: description.trim(),
-//     startDate: parsedStartDate,
-//     deadline: parsedDeadline,
-//     rewards,
-//     image,
-//     status: getStatus(parsedStartDate, parsedDeadline),
-//     createdBy: req.user._id,
-//   });
+  return [];
+};
 
-//   return res.status(201).json({
-//     success: true,
-//     message: "Contest created successfully",
-//     contest,
-//   });
-// });
+const cleanupContestUploads = async (req) => {
+  await Promise.all([
+    removeCloudinaryFile(getUploadedFile(req, "image")),
+    removeCloudinaryFile(getUploadedFile(req, "projectBriefing"), {
+      resourceType: "raw",
+    }),
+  ]);
+};
+
+const getProjectBriefingDownloadUrl = (contest) => {
+  if (!contest?.projectBriefingPublicId) {
+    return contest?.projectBriefing || "";
+  }
+
+  return cloudinary.url(contest.projectBriefingPublicId, {
+    resource_type: "raw",
+    type: "upload",
+    flags: "attachment",
+    secure: true,
+  });
+};
+
+const serializeContest = (contest) => {
+  if (!contest) {
+    return contest;
+  }
+
+  const serializedContest = contest.toObject ? contest.toObject() : contest;
+
+  return {
+    ...serializedContest,
+    projectBriefingDownloadUrl: getProjectBriefingDownloadUrl(serializedContest),
+  };
+};
+
+const serializeContests = (contests) => contests.map(serializeContest);
 
 export const createContest = asyncHandler(async (req, res) => {
-  // 1. Extract the new fields from req.body, including 'prize'
-  const { 
-    title, 
-    description, 
-    startDate, 
-    deadline,  
-    participationType, 
+  const {
+    title,
+    description,
+    startDate,
+    deadline,
+    participationType,
     maxTeamSize,
-   rewards
+    rewards,
   } = req.body;
-  
-  const image = req.file?.path || "";
+  const imageFile = getUploadedFile(req, "image");
+  const projectBriefingFile = getUploadedFile(req, "projectBriefing");
+  const normalizedRewards = normalizeRewards(rewards);
 
-  console.log("BODY =>", req.body);
-  console.log("USER =>", req.user);
-  console.log("FILE =>", req.file);
+  if (!title || !description || !startDate || !deadline || normalizedRewards.length === 0) {
+    await cleanupContestUploads(req);
 
-  // 2. Validate standard required fields (Added prize here)
-  if (!title || !description || !startDate || !deadline || !rewards) {
     return res.status(400).json({
       message: "Title, description, startDate, deadline, and rewards are required",
     });
   }
 
   if (!req.user || !req.user._id) {
+    await cleanupContestUploads(req);
+
     return res.status(401).json({
       message: "Unauthorized user",
     });
   }
 
-  // 3. Validate Participation Type logic
-  const type = participationType || 'solo'; 
+  const type = participationType || "solo";
 
-  if (!['solo', 'team', 'both'].includes(type)) {
+  if (!["solo", "team", "both"].includes(type)) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "participationType must be 'solo', 'team', or 'both'",
     });
   }
 
-  if (type !== 'solo') {
-    if (!maxTeamSize || Number(maxTeamSize) < 2) {
-      return res.status(400).json({
-        message: "Team or both-mode contests require a maxTeamSize of at least 2",
-      });
-    }
+  if (type !== "solo" && (!maxTeamSize || Number(maxTeamSize) < 2)) {
+    await cleanupContestUploads(req);
+
+    return res.status(400).json({
+      message: "Team or both-mode contests require a maxTeamSize of at least 2",
+    });
   }
 
-  // 4. Validate Dates
   const parsedStartDate = new Date(startDate);
   const parsedDeadline = new Date(deadline);
 
   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "Invalid startDate or deadline format",
     });
   }
 
   if (parsedStartDate >= parsedDeadline) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "Deadline must be greater than startDate",
     });
   }
 
-  // 5. Create the contest with the new data
-  const contest = await Contest.create({
-    title: title.trim(),
-    description: description.trim(),
-    startDate: parsedStartDate,
-    deadline: parsedDeadline,
-    rewards, 
-    image,
-    participationType: type,
-    maxTeamSize: type === 'solo' ? 1 : Number(maxTeamSize),
-    createdBy: req.user._id,
-  });
+  let contest;
+
+  try {
+    contest = await Contest.create({
+      title: title.trim(),
+      description: description.trim(),
+      startDate: parsedStartDate,
+      deadline: parsedDeadline,
+      rewards: normalizedRewards,
+      image: imageFile?.path || "",
+      imagePublicId: imageFile?.filename || "",
+      projectBriefing: projectBriefingFile?.path || "",
+      projectBriefingPublicId: projectBriefingFile?.filename || "",
+      projectBriefingOriginalName: projectBriefingFile?.originalname || "",
+      participationType: type,
+      maxTeamSize: type === "solo" ? 1 : Number(maxTeamSize),
+      createdBy: req.user._id,
+    });
+  } catch (error) {
+    await cleanupContestUploads(req);
+    throw error;
+  }
+
+  const populatedContest = await Contest.findById(contest._id).populate(
+    "createdBy",
+    "name email"
+  );
 
   return res.status(201).json({
     success: true,
     message: "Contest created successfully",
-    contest,
+    contest: serializeContest(populatedContest),
   });
 });
 
@@ -161,7 +203,7 @@ export const getAllContests = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    contests,
+    contests: serializeContests(contests),
   });
 });
 
@@ -185,15 +227,14 @@ export const getContestById = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    contest,
+    contest: serializeContest(contest),
   });
 });
 
-// ===============================
-// UPDATE CONTEST
-// ===============================
-export const updateContest = asyncHandler(async (req, res) => {
-  const contest = await Contest.findById(req.params.id);
+export const downloadProjectBriefing = asyncHandler(async (req, res) => {
+  const contest = await Contest.findById(req.params.id).select(
+    "projectBriefing projectBriefingPublicId"
+  );
 
   if (!contest) {
     return res.status(404).json({
@@ -202,12 +243,43 @@ export const updateContest = asyncHandler(async (req, res) => {
     });
   }
 
-  const image = req.file?.path;
+  const downloadUrl = getProjectBriefingDownloadUrl(contest);
+
+  if (!downloadUrl) {
+    return res.status(404).json({
+      success: false,
+      message: "Project briefing PDF not found for this contest",
+    });
+  }
+
+  return res.redirect(downloadUrl);
+});
+
+// ===============================
+// UPDATE CONTEST
+// ===============================
+export const updateContest = asyncHandler(async (req, res) => {
+  const contest = await Contest.findById(req.params.id);
+  const imageFile = getUploadedFile(req, "image");
+  const projectBriefingFile = getUploadedFile(req, "projectBriefing");
+  const shouldRemoveProjectBriefing =
+    req.body.removeProjectBriefing === true ||
+    req.body.removeProjectBriefing === "true";
+
+  if (!contest) {
+    await cleanupContestUploads(req);
+
+    return res.status(404).json({
+      success: false,
+      message: "Contest not found",
+    });
+  }
 
   const updatedTitle = req.body.title ?? contest.title;
   const updatedDescription = req.body.description ?? contest.description;
-  const updatedRewards = req.body.rewards ?? contest.rewards;
-  const updatedParticipationType = req.body.participationType ?? contest.participationType;
+  const updatedRewards = normalizeRewards(req.body.rewards ?? contest.rewards);
+  const updatedParticipationType =
+    req.body.participationType ?? contest.participationType;
   const updatedMaxTeamSize =
     updatedParticipationType !== "solo"
       ? Number(req.body.maxTeamSize ?? contest.maxTeamSize)
@@ -219,19 +291,33 @@ export const updateContest = asyncHandler(async (req, res) => {
     ? new Date(req.body.deadline)
     : new Date(contest.deadline);
 
+  if (!updatedTitle?.trim() || !updatedDescription?.trim() || updatedRewards.length === 0) {
+    await cleanupContestUploads(req);
+
+    return res.status(400).json({
+      message: "Title, description, startDate, deadline, and rewards are required",
+    });
+  }
+
   if (!isValidDate(updatedStartDate) || !isValidDate(updatedDeadline)) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "Invalid startDate or deadline format",
     });
   }
 
   if (updatedStartDate >= updatedDeadline) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "Deadline must be greater than startDate",
     });
   }
 
   if (!["solo", "team", "both"].includes(updatedParticipationType)) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "participationType must be 'solo', 'team', or 'both'",
     });
@@ -241,13 +327,18 @@ export const updateContest = asyncHandler(async (req, res) => {
     updatedParticipationType !== "solo" &&
     (!Number.isInteger(updatedMaxTeamSize) || updatedMaxTeamSize < 2)
   ) {
+    await cleanupContestUploads(req);
+
     return res.status(400).json({
       message: "Team or both-mode contests require a maxTeamSize of at least 2",
     });
   }
 
+  const previousImagePublicId = contest.imagePublicId;
+  const previousProjectBriefingPublicId = contest.projectBriefingPublicId;
+
   contest.title = updatedTitle.trim();
-  contest.description = updatedDescription?.trim?.() || "";
+  contest.description = updatedDescription.trim();
   contest.rewards = updatedRewards;
   contest.participationType = updatedParticipationType;
   contest.maxTeamSize = updatedMaxTeamSize;
@@ -255,11 +346,42 @@ export const updateContest = asyncHandler(async (req, res) => {
   contest.deadline = updatedDeadline;
   contest.status = getContestStatus(contest);
 
-  if (image) {
-    contest.image = image;
+  if (imageFile) {
+    contest.image = imageFile.path;
+    contest.imagePublicId = imageFile.filename || "";
   }
 
-  await contest.save();
+  if (projectBriefingFile) {
+    contest.projectBriefing = projectBriefingFile.path;
+    contest.projectBriefingPublicId = projectBriefingFile.filename || "";
+    contest.projectBriefingOriginalName = projectBriefingFile.originalname || "";
+  } else if (shouldRemoveProjectBriefing) {
+    contest.projectBriefing = "";
+    contest.projectBriefingPublicId = "";
+    contest.projectBriefingOriginalName = "";
+  }
+
+  try {
+    await contest.save();
+  } catch (error) {
+    await cleanupContestUploads(req);
+    throw error;
+  }
+
+  await Promise.all([
+    imageFile &&
+    previousImagePublicId &&
+    previousImagePublicId !== contest.imagePublicId
+      ? removeCloudinaryFile(previousImagePublicId)
+      : Promise.resolve(),
+    (projectBriefingFile || shouldRemoveProjectBriefing) &&
+    previousProjectBriefingPublicId &&
+    previousProjectBriefingPublicId !== contest.projectBriefingPublicId
+      ? removeCloudinaryFile(previousProjectBriefingPublicId, {
+          resourceType: "raw",
+        })
+      : Promise.resolve(),
+  ]);
 
   const populatedContest = await Contest.findById(contest._id).populate(
     "createdBy",
@@ -269,7 +391,7 @@ export const updateContest = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Contest updated successfully",
-    contest: populatedContest,
+    contest: serializeContest(populatedContest),
   });
 });
 
@@ -287,6 +409,12 @@ export const deleteContest = asyncHandler(async (req, res) => {
   }
 
   await contest.deleteOne();
+  await Promise.all([
+    removeCloudinaryFile(contest.imagePublicId),
+    removeCloudinaryFile(contest.projectBriefingPublicId, {
+      resourceType: "raw",
+    }),
+  ]);
 
   return res.status(200).json({
     success: true,
@@ -310,7 +438,7 @@ export const getActiveContests = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Active contests fetched successfully",
-    contests,
+    contests: serializeContests(contests),
   });
 });
 
@@ -328,7 +456,7 @@ export const getUpcomingContests = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Upcoming contests fetched successfully",
-    contests,
+    contests: serializeContests(contests),
   });
 });
 
@@ -347,7 +475,7 @@ export const getCompletedContests = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Completed contests fetched successfully",
-    contests,
+    contests: serializeContests(contests),
   });
 });
 

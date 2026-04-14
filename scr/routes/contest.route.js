@@ -58,6 +58,7 @@ import {
   createContest,
   getAllContests,
   getContestById,
+  downloadProjectBriefing,
   updateContest,
   deleteContest,
   getActiveContests,
@@ -65,10 +66,14 @@ import {
   getCompletedContests
 } from "../controllers/contest.controller.js";
 
-import { upload } from "../middleware/uploadMiddleware.js";
+import { uploadContestAssets } from "../middleware/uploadMiddleware.js";
 import { authorizeRoles, verifyJWT } from "../middleware/checkAuthUser.js";
 
 const contestRouter = express.Router();
+const contestAssetFields = uploadContestAssets.fields([
+  { name: "image", maxCount: 1 },
+  { name: "projectBriefing", maxCount: 1 },
+]);
 
 
 // ================= ADMIN ROUTES =================
@@ -78,7 +83,7 @@ contestRouter.post(
   "/create",
   verifyJWT,
   authorizeRoles("admin"),
-  upload.single("image"),
+  contestAssetFields,
   createContest
 );
 
@@ -87,7 +92,7 @@ contestRouter.put(
   "/update/:id",
   verifyJWT,
   authorizeRoles("admin"),
-  upload.single("image"),
+  contestAssetFields,
   updateContest
 );
 
@@ -115,6 +120,7 @@ contestRouter.get("/upcoming", getUpcomingContests);
 contestRouter.get("/completed", getCompletedContests);
 
 // ✅ Get single contest
+contestRouter.get("/:id/project-briefing/download", downloadProjectBriefing);
 contestRouter.get("/:id", getContestById);
 
 export default contestRouter;

@@ -74,6 +74,26 @@ const contestSchema = new mongoose.Schema(
       type: String
     },
 
+    imagePublicId: {
+      type: String,
+      default: ""
+    },
+
+    projectBriefing: {
+      type: String,
+      default: ""
+    },
+
+    projectBriefingPublicId: {
+      type: String,
+      default: ""
+    },
+
+    projectBriefingOriginalName: {
+      type: String,
+      default: ""
+    },
+
     startDate: {
       type: Date,
       required: true
@@ -109,7 +129,7 @@ const contestSchema = new mongoose.Schema(
 
     participationType: {
       type: String,
-      enum: ['solo', 'team'],
+      enum: ['solo', 'team', 'both'],
       default: 'solo',
       required: true
     },
