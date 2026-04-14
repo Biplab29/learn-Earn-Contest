@@ -128,21 +128,6 @@ export const loginUser = asyncHandler(async (req, res) => {
 });
 
 
-// export const logoutUser = asyncHandler(async (req, res) => {
-//   await User.findByIdAndUpdate(
-//     req.user._id,
-//     { refreshToken: null },
-//     { new: true }
-//   );
-
-//   res.clearCookie("accessToken");
-//   res.clearCookie("refreshToken");
-
-//   return res.status(201).json({
-//     message: "User logged out successfully",
-//   });
-// });
-
 
 export const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
