@@ -9,6 +9,10 @@ const imageMimeTypes = [
   "image/webp",
 ];
 const pdfMimeTypes = ["application/pdf"];
+const contestBriefingFieldNames = ["projectBriefing", "projectBriefingPdf"];
+
+const isContestBriefingField = (fieldName) =>
+  contestBriefingFieldNames.includes(fieldName);
 
 const imageFileFilter = (req, file, cb) => {
   if (imageMimeTypes.includes(file.mimetype)) {
@@ -42,11 +46,14 @@ const contestAssetFileFilter = (req, file, cb) => {
     return cb(null, true);
   }
 
-  if (file.fieldname === "projectBriefing" && pdfMimeTypes.includes(file.mimetype)) {
+  if (
+    isContestBriefingField(file.fieldname) &&
+    pdfMimeTypes.includes(file.mimetype)
+  ) {
     return cb(null, true);
   }
 
-  if (file.fieldname === "projectBriefing") {
+  if (isContestBriefingField(file.fieldname)) {
     return cb(new Error("Only PDF files are allowed for the project briefing"));
   }
 
@@ -56,7 +63,7 @@ const contestAssetFileFilter = (req, file, cb) => {
 const contestAssetStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    if (file.fieldname === "projectBriefing") {
+    if (isContestBriefingField(file.fieldname)) {
       return {
         folder: "contests/briefings",
         allowed_formats: ["pdf"],
@@ -81,6 +88,7 @@ export const uploadContestAssets = multer({
   },
 });
 
+export const contestBriefingUploadFields = contestBriefingFieldNames;
 export const upload = createCloudinaryImageUpload("contests/images");
 export const uploadProfilePicture = createCloudinaryImageUpload("users/profile-pictures");
 

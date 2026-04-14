@@ -56,7 +56,26 @@ app.use((err, req, res, next) => {
     return next(err);
   }
 
-  return res.status(err.status || 500).json({
+  if (err?.name === "MulterError") {
+    const message =
+      err.code === "LIMIT_UNEXPECTED_FILE" && err.field
+        ? `Unexpected field: ${err.field}. Allowed upload fields are image, projectBriefing, and projectBriefingPdf.`
+        : err.message || "Invalid upload request";
+
+    return res.status(400).json({ message });
+  }
+
+  if (
+    /Only JPG, PNG, JPEG, and WEBP images are allowed|Only PDF files are allowed for the project briefing|Only contest images and PDF project briefings are allowed/i.test(
+      err?.message || ""
+    )
+  ) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+
+  return res.status(err.status || err.statusCode || 500).json({
     message: err.message || "Internal server error",
   });
 });

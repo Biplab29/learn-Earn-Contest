@@ -4,19 +4,46 @@ import cloudinary from "../config/cloudinary.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
 import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
 
+const PROJECT_BRIEFING_UPLOAD_FIELDS = [
+  "projectBriefing",
+  "projectBriefingPdf",
+];
+
 const isValidDate = (date) => {
   return date instanceof Date && !isNaN(date.getTime());
 };
 
-const getUploadedFile = (req, fieldName) => {
+const getUploadedFiles = (req, fieldName) => {
   const fieldFiles = req.files?.[fieldName];
 
   if (!Array.isArray(fieldFiles) || fieldFiles.length === 0) {
-    return null;
+    return [];
   }
 
-  return fieldFiles[0];
+  return fieldFiles;
 };
+
+const getUploadedFile = (req, fieldName) => {
+  const fieldNames = Array.isArray(fieldName) ? fieldName : [fieldName];
+
+  for (const currentFieldName of fieldNames) {
+    const [fieldFile] = getUploadedFiles(req, currentFieldName);
+
+    if (fieldFile) {
+      return fieldFile;
+    }
+  }
+
+  return null;
+};
+
+const getProjectBriefingFiles = (req) =>
+  PROJECT_BRIEFING_UPLOAD_FIELDS.flatMap((fieldName) =>
+    getUploadedFiles(req, fieldName)
+  );
+
+const getProjectBriefingFile = (req) =>
+  getUploadedFile(req, PROJECT_BRIEFING_UPLOAD_FIELDS);
 
 const normalizeRewards = (rewards) => {
   if (Array.isArray(rewards)) {
@@ -53,12 +80,24 @@ const normalizeRewards = (rewards) => {
 };
 
 const cleanupContestUploads = async (req) => {
-  await Promise.all([
-    removeCloudinaryFile(getUploadedFile(req, "image")),
-    removeCloudinaryFile(getUploadedFile(req, "projectBriefing"), {
-      resourceType: "raw",
-    }),
-  ]);
+  const filesToCleanup = [
+    ...getUploadedFiles(req, "image").map((file) => ({
+      file,
+      options: undefined,
+    })),
+    ...getProjectBriefingFiles(req).map((file) => ({
+      file,
+      options: {
+        resourceType: "raw",
+      },
+    })),
+  ];
+
+  await Promise.all(
+    filesToCleanup.map(({ file, options }) =>
+      removeCloudinaryFile(file, options)
+    )
+  );
 };
 
 const getProjectBriefingDownloadUrl = (contest) => {
@@ -100,8 +139,17 @@ export const createContest = asyncHandler(async (req, res) => {
     rewards,
   } = req.body;
   const imageFile = getUploadedFile(req, "image");
-  const projectBriefingFile = getUploadedFile(req, "projectBriefing");
+  const projectBriefingFiles = getProjectBriefingFiles(req);
+  const projectBriefingFile = getProjectBriefingFile(req);
   const normalizedRewards = normalizeRewards(rewards);
+
+  if (projectBriefingFiles.length > 1) {
+    await cleanupContestUploads(req);
+
+    return res.status(400).json({
+      message: "Upload only one project briefing PDF",
+    });
+  }
 
   if (!title || !description || !startDate || !deadline || normalizedRewards.length === 0) {
     await cleanupContestUploads(req);
@@ -261,10 +309,19 @@ export const downloadProjectBriefing = asyncHandler(async (req, res) => {
 export const updateContest = asyncHandler(async (req, res) => {
   const contest = await Contest.findById(req.params.id);
   const imageFile = getUploadedFile(req, "image");
-  const projectBriefingFile = getUploadedFile(req, "projectBriefing");
+  const projectBriefingFiles = getProjectBriefingFiles(req);
+  const projectBriefingFile = getProjectBriefingFile(req);
   const shouldRemoveProjectBriefing =
     req.body.removeProjectBriefing === true ||
     req.body.removeProjectBriefing === "true";
+
+  if (projectBriefingFiles.length > 1) {
+    await cleanupContestUploads(req);
+
+    return res.status(400).json({
+      message: "Upload only one project briefing PDF",
+    });
+  }
 
   if (!contest) {
     await cleanupContestUploads(req);

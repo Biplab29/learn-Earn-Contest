@@ -66,13 +66,19 @@ import {
   getCompletedContests
 } from "../controllers/contest.controller.js";
 
-import { uploadContestAssets } from "../middleware/uploadMiddleware.js";
+import {
+  contestBriefingUploadFields,
+  uploadContestAssets,
+} from "../middleware/uploadMiddleware.js";
 import { authorizeRoles, verifyJWT } from "../middleware/checkAuthUser.js";
 
 const contestRouter = express.Router();
 const contestAssetFields = uploadContestAssets.fields([
   { name: "image", maxCount: 1 },
-  { name: "projectBriefing", maxCount: 1 },
+  ...contestBriefingUploadFields.map((name) => ({
+    name,
+    maxCount: 1,
+  })),
 ]);
 
 
@@ -121,6 +127,7 @@ contestRouter.get("/completed", getCompletedContests);
 
 // ✅ Get single contest
 contestRouter.get("/:id/project-briefing/download", downloadProjectBriefing);
+
 contestRouter.get("/:id", getContestById);
 
 export default contestRouter;
