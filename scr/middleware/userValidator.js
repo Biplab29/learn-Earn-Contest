@@ -1,5 +1,6 @@
 
 import { body, validationResult } from "express-validator";
+import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
 
 export const userValidationRules = [
   body("name")
@@ -31,9 +32,11 @@ export const userValidationRules = [
 ];
 
 // catch any errors from  here
-export const validate = (req, res, next) => {
+export const validate = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    await removeCloudinaryFile(req.file);
+
     return res.status(400).json({ 
         success: false, 
         errors: errors.array() 

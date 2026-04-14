@@ -1,37 +1,45 @@
 
 import asyncHandler from '../middleware/asyncHandler.js';
 import { User } from '../models/user.model.js';
+import removeCloudinaryFile from '../utils/removeCloudinaryFile.js';
 
 
 export const registerUser = asyncHandler(async (req, res) => {
+  let createdUser = null;
+
   try {
-    
     const { name, email, password, phoneNumber, gender } = req.body;
     const normalizedEmail = email?.toLowerCase().trim();
+    const profilePicture = req.file?.path || "";
+    const profilePicturePublicId = req.file?.filename || "";
 
-    // 2. Update validation to include new fields if they are mandatory
     if (!name || !normalizedEmail || !password || !phoneNumber || !gender) {
+      await removeCloudinaryFile(req.file);
+
       return res.status(400).json({ message: "All fields are required" });
     }
 
     const userExist = await User.findOne({ email: normalizedEmail });
 
     if (userExist) {
+      await removeCloudinaryFile(req.file);
+
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // 3. Pass the new fields into the create method
-    const user = await User.create({
+    createdUser = await User.create({
       name,
       email: normalizedEmail,
       password,
       phoneNumber,
-      gender
+      gender,
+      profilePicture,
+      profilePicturePublicId,
     });
 
-    // Remove password from the response for security
-    const userResponse = user.toObject();
+    const userResponse = createdUser.toObject();
     delete userResponse.password;
+    delete userResponse.profilePicturePublicId;
 
     res.status(201).json({
       message: "User registered successfully",
@@ -40,6 +48,10 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   } catch (error) {
     console.log("REGISTER ERROR:", error.message);
+
+    if (!createdUser) {
+      await removeCloudinaryFile(req.file);
+    }
 
     res.status(500).json({
       message: error.message

@@ -4,11 +4,18 @@ import { authorizeRoles, verifyJWT } from '../middleware/checkAuthUser.js';
 import { userValidationRules, validate } from '../middleware/userValidator.js';
 import { forgotPassword } from '../controllers/forgotPassword.controller.js';
 import { resetPassword } from '../controllers/resetPassword.controller.js';
+import { uploadProfilePicture } from '../middleware/uploadMiddleware.js';
 
 const userRouter = express.Router();
 
 
-userRouter.post("/register",  userValidationRules, validate, registerUser);
+userRouter.post(
+  "/register",
+  uploadProfilePicture.single("profilePicture"),
+  userValidationRules,
+  validate,
+  registerUser
+);
 userRouter.post("/login", loginUser);
 userRouter.get("/user/:id", verifyJWT, getSingleUser);
 userRouter.put("/user/update/:id", verifyJWT, authorizeRoles("admin"),updateUser)

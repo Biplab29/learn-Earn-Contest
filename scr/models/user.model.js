@@ -92,6 +92,17 @@ const Userschema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    profilePicture: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    profilePicturePublicId: {
+      type: String,
+      default: "",
+      select: false,
+      trim: true,
+    },
     gender: {
       type: String,
       enum: ["male", "female", "other", "prefer not to say"],
