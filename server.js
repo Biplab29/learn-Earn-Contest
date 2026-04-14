@@ -23,7 +23,7 @@ app.use(cors({
 
   origin: [
     "http://localhost:5173",
-    "https://learnandearnweb.netlify.app"
+    "https://learnearnweb.netlify.app"
   ], 
   
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
