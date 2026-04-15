@@ -1,4 +1,87 @@
 
+// import crypto from "crypto";
+// import { sendEmail } from "../utils/sendEmail.js";
+// import asyncHandler from "../middleware/asyncHandler.js";
+// import { User } from "../models/user.model.js";
+
+// export const forgotPassword = asyncHandler(async (req, res) => {
+//   const { email } = req.body;
+//   const normalizedEmail = email?.toLowerCase().trim();
+//   const frontendUrl = (
+//     process.env.FRONTEND_URL ||
+//     process.env.CLIENT_URL ||
+//     "http://localhost:5173"
+//   ).replace(/\/+$/, "");
+
+//   if (!normalizedEmail) {
+//     return res.status(400).json({ message: "Email is required" });
+//   }
+
+//   const user = await User.findOne({ email: normalizedEmail });
+
+//   if (!user) {
+//     return res.status(404).json({ message: "User not found" });
+//   }
+
+//   const resetToken = crypto.randomBytes(32).toString("hex");
+
+//   const hashedToken = crypto
+//     .createHash("sha256")
+//     .update(resetToken)
+//     .digest("hex");
+
+//   user.resetPasswordToken = hashedToken;
+//   user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+//   await user.save({ validateBeforeSave: false });
+
+  
+//   const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+  
+//   // const message = `
+//   //   <h2>Password Reset</h2>
+//   //   <p>Click below to reset your password:</p>
+//   //   <a href="${resetUrl}">${resetUrl}</a>
+//   //   <p>This link will expire in 10 minutes.</p>
+//   // `;
+
+//   const message = `
+//     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+//       <h2 style="color: #333;">Password Reset Request</h2>
+//       <p style="color: #555; font-size: 16px;">
+//         We received a request to reset your password. Click the button below to choose a new one:
+//       </p>
+//       <div style="text-align: center; margin: 30px 0;">
+//         <a href="${resetUrl}" style="background-color: #007BFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+//           Reset My Password
+//         </a>
+//       </div>
+//       <p style="color: #999; font-size: 14px;">
+//         This link will expire in <strong>10 minutes</strong>.
+//       </p>
+//     </div>
+//   `;
+
+//   try {
+//     await sendEmail(user.email, "Password Reset", message);
+//   } catch (error) {
+//     user.resetPasswordToken = undefined;
+//     user.resetPasswordExpire = undefined;
+//     await user.save({ validateBeforeSave: false });
+
+//     return res.status(500).json({
+//       message: error.message || "Failed to send reset email",
+//     });
+//   }
+
+//   res.status(200).json({
+//     message: "Reset link sent to your email",
+//   });
+// });
+
+
+
 import crypto from "crypto";
 import { sendEmail } from "../utils/sendEmail.js";
 import asyncHandler from "../middleware/asyncHandler.js";
@@ -7,44 +90,48 @@ import { User } from "../models/user.model.js";
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const normalizedEmail = email?.toLowerCase().trim();
+
   const frontendUrl = (
     process.env.FRONTEND_URL ||
     process.env.CLIENT_URL ||
     "http://localhost:5173"
   ).replace(/\/+$/, "");
 
-  if (!normalizedEmail) {
-    return res.status(400).json({ message: "Email is required" });
+  // বাংলা: valid email check
+  // English: validate email input
+  if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+    return res.status(400).json({
+      message: "Valid email is required",
+    });
   }
 
   const user = await User.findOne({ email: normalizedEmail });
 
+  // বাংলা: security-এর জন্য generic response
+  // English: return generic response to avoid email enumeration
   if (!user) {
-    return res.status(404).json({ message: "User not found" });
+    return res.status(200).json({
+      message: "If an account with that email exists, a reset link has been sent",
+    });
   }
 
+  // বাংলা: raw reset token generate
+  // English: generate raw reset token
   const resetToken = crypto.randomBytes(32).toString("hex");
 
+  // বাংলা: DB-তে hashed token save হবে
+  // English: store hashed token in DB
   const hashedToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
 
   user.resetPasswordToken = hashedToken;
-  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  user.resetPasswordExpire = new Date(Date.now() + 10 * 60 * 1000);
 
   await user.save({ validateBeforeSave: false });
 
-  
   const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-
-  
-  // const message = `
-  //   <h2>Password Reset</h2>
-  //   <p>Click below to reset your password:</p>
-  //   <a href="${resetUrl}">${resetUrl}</a>
-  //   <p>This link will expire in 10 minutes.</p>
-  // `;
 
   const message = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
@@ -59,6 +146,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
       </div>
       <p style="color: #999; font-size: 14px;">
         This link will expire in <strong>10 minutes</strong>.
+      </p>
+      <p style="color: #777; font-size: 13px; word-break: break-all;">
+        If the button does not work, copy and paste this link into your browser:
+        <br />
+        ${resetUrl}
       </p>
     </div>
   `;
@@ -75,7 +167,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-  res.status(200).json({
-    message: "Reset link sent to your email",
+  return res.status(200).json({
+    message: "If an account with that email exists, a reset link has been sent",
   });
 });

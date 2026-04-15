@@ -1,4 +1,1709 @@
 
+// import mongoose from "mongoose";
+// import asyncHandler from "../middleware/asyncHandler.js";
+// import { Submission } from "../models/submission.model.js";
+// import { Contest, getContestStatus } from "../models/contest.model.js";
+// import { Participation } from "../models/participation.model.js";
+// import { User } from "../models/user.model.js";
+// import { Team } from "../models/team.model.js";
+
+// // helper
+// const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// const isContestActive = (contest) => getContestStatus(contest) === "active";
+
+// const normalizeScore = (value) => {
+//   if (value === undefined || value === null || value === "") {
+//     return null;
+//   }
+
+//   const parsedScore = Number(value);
+
+//   if (!Number.isFinite(parsedScore) || parsedScore < 0) {
+//     return null;
+//   }
+
+//   return parsedScore;
+// };
+
+// const addSubmissionRanks = (submissions) =>
+//   submissions.map((submission, index) => ({
+//     rank: index + 1,
+//     ...submission.toObject(),
+//   }));
+
+// const canManageSubmission = async ({ submission, user }) => {
+//   if (!submission || !user) {
+//     return false;
+//   }
+
+//   if (user.role === "admin") {
+//     return true;
+//   }
+
+//   const submissionUserId = submission.user?._id || submission.user;
+//   const submissionTeamId = submission.team?._id || submission.team;
+//   const contestId = submission.contest?._id || submission.contest;
+
+//   if (!submissionTeamId) {
+//     return submissionUserId?.toString() === user._id.toString();
+//   }
+
+//   const teamParticipation = await Participation.findOne({
+//     user: user._id,
+//     contest: contestId,
+//     team: submissionTeamId,
+//   }).select("_id");
+
+//   return !!teamParticipation;
+// };
+
+// const winnerPopulate = {
+//   path: "winner",
+//   populate: [
+//     { path: "user", select: "name email phoneNumber gender" },
+//     { path: "team", select: "teamName" },
+//   ],
+// };
+
+// // ================================
+// // Submit Project
+// // ================================
+// export const submitProject = asyncHandler(async (req, res) => {
+//   const { contestId, githubLink, liveUrl } = req.body;
+//   const userId = req.user._id;
+
+//   if (!contestId || !isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Valid contestId is required",
+//     });
+//   }
+
+//   if (!githubLink || !githubLink.trim()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "GitHub link is required",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   if (!isContestActive(contest)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Contest is not active for submissions",
+//     });
+//   }
+
+//   const participation = await Participation.findOne({
+//     user: userId,
+//     contest: contestId,
+//   });
+
+//   if (!participation) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "You must join this contest before submitting.",
+//     });
+//   }
+
+//   let existingSubmission = null;
+
+//   if (participation.participationType === "team") {
+//     if (!participation.team) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Team participation found, but no team is assigned.",
+//       });
+//     }
+
+//     existingSubmission = await Submission.findOne({
+//       contest: contestId,
+//       team: participation.team,
+//     });
+//   } else {
+//     existingSubmission = await Submission.findOne({
+//       contest: contestId,
+//       user: userId,
+//       team: null,
+//     });
+//   }
+
+//   if (existingSubmission) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "A submission already exists for you or your team in this contest.",
+//     });
+//   }
+
+//   const submission = await Submission.create({
+//     user: userId,
+//     team: participation.team || null,
+//     contest: contestId,
+//     githubLink: githubLink.trim(),
+//     liveUrl: liveUrl?.trim() || "",
+//   });
+
+//   if (participation.participationType === "team") {
+//     await Participation.updateMany(
+//       {
+//         contest: contestId,
+//         team: participation.team,
+//       },
+//       {
+//         status: "submitted",
+//       }
+//     );
+//   } else {
+//     participation.status = "submitted";
+//     await participation.save();
+//   }
+
+//   const populatedSubmission = await Submission.findById(submission._id)
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName")
+//     .populate("contest", "title");
+
+//   return res.status(201).json({
+//     success: true,
+//     message: "Project submitted successfully!",
+//     submission: populatedSubmission,
+//   });
+// });
+
+// // ================================
+// // Get all submissions for one contest
+// // ================================
+// export const getSubmissionsByContest = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+
+//   if (!isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid contestId",
+//     });
+//   }
+
+//   const submissions = await Submission.find({ contest: contestId })
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName members")
+//     .populate("contest", "title status startDate deadline")
+//     .sort({ totalScore: -1, createdAt: -1 });
+
+//   const evaluatedSubmissions = submissions.filter(
+//     (item) => item.status === "evaluated"
+//   );
+
+//   const pendingSubmissions = submissions.filter(
+//     (item) => item.status !== "evaluated"
+//   );
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Contest submissions fetched successfully",
+//     totalSubmissions: submissions.length,
+//     totalEvaluatedSubmissions: evaluatedSubmissions.length,
+//     totalPendingSubmissions: pendingSubmissions.length,
+//     submissions,
+//   });
+// });
+
+// // ================================
+// // Get my submissions
+// // ================================
+// export const getMySubmissions = asyncHandler(async (req, res) => {
+//   const submissions = await Submission.find({ user: req.user._id })
+//     .populate("contest", "title status startDate deadline")
+//     .populate("team", "teamName")
+//     .sort({ createdAt: -1 });
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "My submissions fetched successfully",
+//     totalSubmissions: submissions.length,
+//     submissions,
+//   });
+// });
+
+// // ================================
+// // Evaluate submission
+// // ================================
+// export const evaluateSubmission = asyncHandler(async (req, res) => {
+//   const { totalScore, remarks } = req.body;
+//   const { id } = req.params;
+
+//   if (!isValidObjectId(id)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid submission id",
+//     });
+//   }
+
+//   const normalizedScore = normalizeScore(totalScore);
+
+//   if (normalizedScore === null) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "A valid totalScore greater than or equal to 0 is required",
+//     });
+//   }
+
+//   if (remarks !== undefined && typeof remarks !== "string") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Remarks must be a string",
+//     });
+//   }
+
+//   const submission = await Submission.findById(id)
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName")
+//     .populate("contest", "title isClosed");
+
+//   if (!submission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Submission not found",
+//     });
+//   }
+
+//   if (submission.contest?.isClosed) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Winner has already been declared for this contest",
+//     });
+//   }
+
+//   submission.totalScore = normalizedScore;
+//   submission.status = "evaluated";
+
+//   if (remarks !== undefined) {
+//     submission.remarks = remarks.trim();
+//   }
+
+//   await submission.save();
+//   await submission.populate("contest", "title");
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Submission evaluated successfully",
+//     submission,
+//   });
+// });
+
+// // ================================
+// // Declare winner
+// // ================================
+// // export const declareWinner = asyncHandler(async (req, res) => {
+// //   const { contestId } = req.params;
+
+// //   if (!isValidObjectId(contestId)) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "Invalid contestId",
+// //     });
+// //   }
+
+// //   const contest = await Contest.findById(contestId);
+
+// //   if (!contest) {
+// //     return res.status(404).json({
+// //       success: false,
+// //       message: "Contest not found",
+// //     });
+// //   }
+
+// //   const submissions = await Submission.find({ contest: contestId })
+// //     .sort({ totalScore: -1, createdAt: 1 })
+// //     .populate("user", "name email phoneNumber gender")
+// //     .populate("team", "teamName")
+// //     .populate("contest", "title");
+
+// //   if (submissions.length === 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "No submissions found to evaluate.",
+// //     });
+// //   }
+
+// //   const evaluatedSubmissions = submissions.filter(
+// //     (submission) => submission.status === "evaluated"
+// //   );
+
+// //   if (evaluatedSubmissions.length === 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+// //     });
+// //   }
+
+// //   const pendingSubmissions = submissions.filter(
+// //     (submission) => submission.status !== "evaluated"
+// //   );
+
+// //   if (!contest.isClosed && pendingSubmissions.length > 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "Evaluate all submissions before declaring the winner.",
+// //       pendingSubmissions: pendingSubmissions.length,
+// //     });
+// //   }
+
+// //   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+// //   const winnerAlreadyDeclared = contest.isClosed;
+
+// //   if (!winnerAlreadyDeclared) {
+// //     contest.isClosed = true;
+// //     contest.status = "completed";
+// //     await contest.save();
+// //   }
+
+// //   return res.status(200).json({
+// //     success: true,
+// //     message: winnerAlreadyDeclared
+// //       ? "Winner already declared for this contest"
+// //       : "Winner declared successfully",
+// //     winner: leaderboard[0],
+// //     leaderboard,
+// //     totalEvaluatedSubmissions: leaderboard.length,
+// //   });
+// // });
+
+// // ================================
+// // 2) How many unique users submitted across all contests
+// // ================================
+// export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
+//   const users = await Submission.distinct("user");
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "All contest unique participant count fetched successfully",
+//     totalUsers: users.length,
+//   });
+// });
+
+// // ================================
+// // 3) How many contests current user submitted in
+// // ================================
+// export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
+//   const contests = await Submission.distinct("contest", {
+//     user: req.user._id,
+//   });
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "My joined contest count fetched successfully",
+//     userId: req.user._id,
+//     totalContests: contests.length,
+//   });
+// });
+
+// // ================================
+// // ***4) Total contests that received at least one submission
+// // ================================
+// export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
+//   await Contest.syncStatuses();
+
+//   const submittedContestIds = await Submission.distinct("contest");
+
+//   const contests = await Contest.find({
+//     _id: { $in: submittedContestIds },
+//   })
+//     .select("title description status startDate deadline image rewards")
+//     .sort({ createdAt: -1 });
+
+//   const result = await Promise.all(
+//     contests.map(async (contest) => {
+//       const submissions = await Submission.find({ contest: contest._id })
+//         .populate("user", "name email phoneNumber gender")
+//         .populate("team", "teamName");
+
+//       const uniqueStudentsMap = new Map();
+//       const evaluatedStudentsMap = new Map();
+
+//       const evaluatedSubmissions = submissions.filter(
+//         (item) => item.status === "evaluated"
+//       );
+
+//       const pendingSubmissions = submissions.filter(
+//         (item) => item.status !== "evaluated"
+//       );
+
+//       const submissionDetails = submissions.map((item) => {
+//         if (item.user) {
+//           uniqueStudentsMap.set(item.user._id.toString(), {
+//             _id: item.user._id,
+//             name: item.user.name,
+//             email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//             team: item.team
+//               ? {
+//                   _id: item.team._id,
+//                   teamName: item.team.teamName,
+//                 }
+//               : null,
+//             githubLink: item.githubLink,
+//             liveUrl: item.liveUrl,
+//             submittedAt: item.createdAt,
+//           });
+
+//           if (item.status === "evaluated") {
+//             evaluatedStudentsMap.set(item.user._id.toString(), {
+//               _id: item.user._id,
+//               name: item.user.name,
+//               email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//               team: item.team
+//                 ? {
+//                     _id: item.team._id,
+//                     teamName: item.team.teamName,
+//                   }
+//                 : null,
+//               totalScore: item.totalScore,
+//               remarks: item.remarks,
+//             });
+//           }
+//         }
+
+//         return {
+//           submissionId: item._id,
+//           student: item.user
+//             ? {
+//                 _id: item.user._id,
+//                 name: item.user.name,
+//                 email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//               }
+//             : null,
+//           team: item.team
+//             ? {
+//                 _id: item.team._id,
+//                 teamName: item.team.teamName,
+//               }
+//             : null,
+//           githubLink: item.githubLink,
+//           liveUrl: item.liveUrl,
+//           totalScore: item.totalScore,
+//           remarks: item.remarks,
+//           status: item.status,
+//           submittedAt: item.createdAt,
+//           updatedAt: item.updatedAt,
+//         };
+//       });
+
+//       const evaluatedSubmissionDetails = evaluatedSubmissions.map((item) => ({
+//         submissionId: item._id,
+//         student: item.user
+//           ? {
+//               _id: item.user._id,
+//               name: item.user.name,
+//               email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//             }
+//           : null,
+//         team: item.team
+//           ? {
+//               _id: item.team._id,
+//               teamName: item.team.teamName,
+//             }
+//           : null,
+//         githubLink: item.githubLink,
+//         liveUrl: item.liveUrl,
+//         totalScore: item.totalScore,
+//         remarks: item.remarks,
+//         status: item.status,
+//         submittedAt: item.createdAt,
+//         updatedAt: item.updatedAt,
+//       }));
+
+//       const studentDetails = Array.from(uniqueStudentsMap.values());
+//       const evaluatedStudentDetails = Array.from(evaluatedStudentsMap.values());
+
+//       return {
+//         ...contest.toObject(),
+//         totalSubmissions: submissions.length,
+//         totalSubmittedStudents: studentDetails.length,
+//         totalEvaluatedSubmissions: evaluatedSubmissions.length,
+//         totalPendingSubmissions: pendingSubmissions.length,
+//         totalEvaluatedStudents: evaluatedStudentDetails.length,
+//         studentDetails,
+//         evaluatedStudentDetails,
+//         submissionDetails,
+//         evaluatedSubmissionDetails,
+//       };
+//     })
+//   );
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Submitted contest details fetched successfully",
+//     totalSubmittedContests: result.length,
+//     contests: result,
+//   });
+// });
+
+// // ================================
+// // 5) Every contest summary: how many submissions each contest has
+// // ================================
+// export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
+//   await Contest.syncStatuses();
+
+//   const summary = await Submission.aggregate([
+//     {
+//       $group: {
+//         _id: "$contest",
+//         totalSubmissions: { $sum: 1 },
+//         uniqueStudents: { $addToSet: "$user" },
+//         totalEvaluatedSubmissions: {
+//           $sum: {
+//             $cond: [{ $eq: ["$status", "evaluated"] }, 1, 0],
+//           },
+//         },
+//         evaluatedStudents: {
+//           $addToSet: {
+//             $cond: [
+//               { $eq: ["$status", "evaluated"] },
+//               "$user",
+//               "$$REMOVE",
+//             ],
+//           },
+//         },
+//       },
+//     },
+//     {
+//       $lookup: {
+//         from: "contests",
+//         localField: "_id",
+//         foreignField: "_id",
+//         as: "contest",
+//       },
+//     },
+//     {
+//       $unwind: "$contest",
+//     },
+//     {
+//       $project: {
+//         _id: 0,
+//         contestId: "$contest._id",
+//         title: "$contest.title",
+//         status: "$contest.status",
+//         startDate: "$contest.startDate",
+//         deadline: "$contest.deadline",
+//         totalSubmissions: 1,
+//         totalStudentsSubmitted: { $size: "$uniqueStudents" },
+//         totalEvaluatedSubmissions: 1,
+//         totalPendingSubmissions: {
+//           $subtract: ["$totalSubmissions", "$totalEvaluatedSubmissions"],
+//         },
+//         totalEvaluatedStudents: { $size: "$evaluatedStudents" },
+//       },
+//     },
+//     {
+//       $sort: { totalSubmissions: -1 },
+//     },
+//   ]);
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Contest submission summary fetched successfully",
+//     totalSubmittedContests: summary.length,
+//     summary,
+//   });
+// });
+
+// // ================================
+// // SINGLE CONTEST + STUDENT DETAILS
+// // ================================
+// export const getSingleContestSubmissionReport = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+
+//   if (!contestId || !isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Valid contest ID is required",
+//     });
+//   }
+
+//   await Contest.syncStatuses({ _id: contestId });
+
+//   const contest = await Contest.findById(contestId).select(
+//     "title status startDate deadline"
+//   );
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   const submissions = await Submission.find({ contest: contestId })
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName members")
+//     .sort({ createdAt: -1 });
+
+//   const uniqueStudentIds = [
+//     ...new Set(
+//       submissions
+//         .filter((item) => item.user?._id)
+//         .map((item) => item.user._id.toString())
+//     ),
+//   ];
+
+//   const evaluatedSubmissions = submissions.filter(
+//     (item) => item.status === "evaluated"
+//   );
+
+//   const pendingSubmissions = submissions.filter(
+//     (item) => item.status !== "evaluated"
+//   );
+
+//   const evaluatedStudentIds = [
+//     ...new Set(
+//       evaluatedSubmissions
+//         .filter((item) => item.user?._id)
+//         .map((item) => item.user._id.toString())
+//     ),
+//   ];
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Single contest submission report fetched successfully",
+//     contest: {
+//       contestId: contest._id,
+//       title: contest.title,
+//       status: contest.status,
+//       startDate: contest.startDate,
+//       deadline: contest.deadline,
+//       totalSubmissions: submissions.length,
+//       totalStudentsSubmitted: uniqueStudentIds.length,
+//       totalEvaluatedSubmissions: evaluatedSubmissions.length,
+//       totalPendingSubmissions: pendingSubmissions.length,
+//       totalEvaluatedStudents: evaluatedStudentIds.length,
+//     },
+//     studentDetails: submissions.map((item) => ({
+//       submissionId: item._id,
+//       student: item.user
+//         ? {
+//             _id: item.user._id,
+//             name: item.user.name,
+//             email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//           }
+//         : null,
+//       team: item.team
+//         ? {
+//             _id: item.team._id,
+//             teamName: item.team.teamName,
+//             members: item.team.members || [],
+//           }
+//         : null,
+//       githubLink: item.githubLink,
+//       liveUrl: item.liveUrl,
+//       totalScore: item.totalScore,
+//       remarks: item.remarks,
+//       status: item.status,
+//       submittedAt: item.createdAt,
+//     })),
+//     evaluatedSubmissionDetails: evaluatedSubmissions.map((item) => ({
+//       submissionId: item._id,
+//       student: item.user
+//         ? {
+//             _id: item.user._id,
+//             name: item.user.name,
+//             email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//           }
+//         : null,
+//       team: item.team
+//         ? {
+//             _id: item.team._id,
+//             teamName: item.team.teamName,
+//             members: item.team.members || [],
+//           }
+//         : null,
+//       githubLink: item.githubLink,
+//       liveUrl: item.liveUrl,
+//       totalScore: item.totalScore,
+//       remarks: item.remarks,
+//       status: item.status,
+//       submittedAt: item.createdAt,
+//     })),
+//   });
+// });
+
+
+// export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+
+//   if (!contestId || !mongoose.Types.ObjectId.isValid(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid contestId",
+//     });
+//   }
+
+//   const submissions = await Submission.find({
+//     contest: contestId,
+//     status: "evaluated",
+//   })
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName");
+
+//   const uniqueUsersMap = new Map();
+
+//   submissions.forEach((item) => {
+//     if (item.user) {
+//       uniqueUsersMap.set(item.user._id.toString(), {
+//         _id: item.user._id,
+//         name: item.user.name,
+//         email: item.user.email,
+//                 phoneNumber: item.user.phoneNumber || "",
+//                 gender: item.user.gender || "",
+//         team: item.team
+//           ? {
+//               _id: item.team._id,
+//               teamName: item.team.teamName,
+//             }
+//           : null,
+//         totalScore: item.totalScore,
+//         remarks: item.remarks,
+//         evaluatedAt: item.updatedAt,
+//       });
+//     }
+//   });
+
+//   const evaluatedUsers = Array.from(uniqueUsersMap.values());
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Evaluated users fetched successfully",
+//     contestId,
+//     totalEvaluatedUsers: evaluatedUsers.length,
+//     evaluatedUsers,
+//   });
+// });
+
+// // export const declareWinner = asyncHandler(async (req, res) => {
+// //   const { contestId } = req.params;
+
+// //   if (!isValidObjectId(contestId)) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "Invalid contestId",
+// //     });
+// //   }
+
+// //   const contest = await Contest.findById(contestId);
+
+// //   if (!contest) {
+// //     return res.status(404).json({
+// //       success: false,
+// //       message: "Contest not found",
+// //     });
+// //   }
+
+// //   const submissions = await Submission.find({ contest: contestId })
+// //     .sort({ totalScore: -1, createdAt: 1 })
+// //     .populate("user", "name email phoneNumber gender")
+// //     .populate("team", "teamName")
+// //     .populate("contest", "title");
+
+// //   if (submissions.length === 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "No submissions found to evaluate.",
+// //     });
+// //   }
+
+// //   const evaluatedSubmissions = submissions.filter(
+// //     (submission) => submission.status === "evaluated"
+// //   );
+
+// //   if (evaluatedSubmissions.length === 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message:
+// //         "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+// //     });
+// //   }
+
+// //   const pendingSubmissions = submissions.filter(
+// //     (submission) => submission.status !== "evaluated"
+// //   );
+
+// //   if (!contest.isClosed && pendingSubmissions.length > 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "Evaluate all submissions before declaring the winner.",
+// //       pendingSubmissions: pendingSubmissions.length,
+// //     });
+// //   }
+
+// //   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+// //   const winnerAlreadyDeclared = contest.isClosed;
+
+// //   if (!winnerAlreadyDeclared) {
+// //     contest.isClosed = true;
+// //     contest.status = "completed";
+// //     contest.winner = leaderboard[0]._id; // Ã¢Å“â€¦ save winner in DB
+// //     await contest.save();
+// //   }
+
+// //   const updatedContest = await Contest.findById(contestId).populate({
+// //     path: "winner",
+// //     populate: [
+// //       { path: "user", select: "name email phoneNumber gender" },
+// //       { path: "team", select: "teamName" },
+// //     ],
+// //   });
+
+// //   return res.status(200).json({
+// //     success: true,
+// //     message: winnerAlreadyDeclared
+// //       ? "Winner already declared for this contest"
+// //       : "Winner declared successfully",
+// //     contestId: contest._id,
+// //     contestTitle: contest.title,
+// //     winner: updatedContest?.winner || leaderboard[0],
+// //     leaderboard,
+// //     totalEvaluatedSubmissions: leaderboard.length,
+// //   });
+// // });
+
+
+// // export const declareWinner = asyncHandler(async (req, res) => {
+// //   const { contestId } = req.params;
+
+// //   if (!isValidObjectId(contestId)) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "Invalid contestId",
+// //     });
+// //   }
+
+// //   const contest = await Contest.findById(contestId);
+
+// //   if (!contest) {
+// //     return res.status(404).json({
+// //       success: false,
+// //       message: "Contest not found",
+// //     });
+// //   }
+
+// //   const submissions = await Submission.find({ contest: contestId })
+// //     .populate("user", "name email phoneNumber gender")
+// //     .populate("team", "teamName")
+// //     .populate("contest", "title");
+
+// //   if (submissions.length === 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "No submissions found to evaluate.",
+// //     });
+// //   }
+
+// //   const evaluatedSubmissions = submissions
+// //     .filter((submission) => submission.status === "evaluated")
+// //     .sort((a, b) => {
+// //       if (b.totalScore !== a.totalScore) {
+// //         return b.totalScore - a.totalScore;
+// //       }
+// //       return new Date(a.createdAt) - new Date(b.createdAt);
+// //     });
+
+// //   if (evaluatedSubmissions.length === 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+// //     });
+// //   }
+
+// //   const pendingSubmissions = submissions.filter(
+// //     (submission) => submission.status !== "evaluated"
+// //   );
+
+// //   if (!contest.isClosed && pendingSubmissions.length > 0) {
+// //     return res.status(400).json({
+// //       success: false,
+// //       message: "Evaluate all submissions before declaring the winner.",
+// //       pendingSubmissions: pendingSubmissions.length,
+// //     });
+// //   }
+
+// //   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+// //   const winnerAlreadyDeclared = contest.isClosed;
+
+// //   if (!winnerAlreadyDeclared) {
+// //     contest.isClosed = true;
+// //     contest.status = "completed";
+// //     contest.winner = leaderboard[0]._id;
+// //     await contest.save();
+// //   }
+
+// //   const updatedContest = await Contest.findById(contestId).populate({
+// //     path: "winner",
+// //     populate: [
+// //       { path: "user", select: "name email phoneNumber gender" },
+// //       { path: "team", select: "teamName" },
+// //     ],
+// //   });
+
+// //   return res.status(200).json({
+// //     success: true,
+// //     message: winnerAlreadyDeclared
+// //       ? "Winner already declared for this contest"
+// //       : "Winner declared successfully",
+// //     contestId: contest._id,
+// //     contestTitle: contest.title,
+// //     winner: updatedContest?.winner || leaderboard[0],
+// //     leaderboard,
+// //     totalEvaluatedSubmissions: leaderboard.length,
+// //   });
+// // });
+
+
+// export const declareWinner = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+
+//   if (!isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid contestId",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   const now = new Date();
+//   const deadline = new Date(contest.deadline);
+
+//   // before deadline -> cannot declare winner
+//   if (now < deadline) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Winner can be declared only after contest deadline.",
+//     });
+//   }
+
+//   // already declared
+//   if (contest.isClosed) {
+//     const alreadyClosedContest = await Contest.findById(contestId).populate(
+//       winnerPopulate
+//     );
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Winner already declared for this contest",
+//       contestId: alreadyClosedContest._id,
+//       contestTitle: alreadyClosedContest.title,
+//       winner: alreadyClosedContest.winner,
+//     });
+//   }
+
+//   const submissions = await Submission.find({ contest: contestId })
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName")
+//     .populate("contest", "title");
+
+//   if (submissions.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No submissions found.",
+//     });
+//   }
+
+//   const evaluatedSubmissions = submissions
+//     .filter((submission) => submission.status === "evaluated")
+//     .sort((a, b) => {
+//       if (b.totalScore !== a.totalScore) {
+//         return b.totalScore - a.totalScore;
+//       }
+//       return new Date(a.createdAt) - new Date(b.createdAt);
+//     });
+
+//   if (evaluatedSubmissions.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+//     });
+//   }
+
+//   const pendingSubmissions = submissions.filter(
+//     (submission) => submission.status !== "evaluated"
+//   );
+
+//   // strict rule -> all submissions must be evaluated
+//   if (pendingSubmissions.length > 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Evaluate all submissions before declaring the winner.",
+//       pendingSubmissions: pendingSubmissions.length,
+//     });
+//   }
+
+//   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
+
+//   contest.isClosed = true;
+//   contest.status = "completed";
+//   contest.winner = leaderboard[0]._id;
+//   await contest.save();
+
+//   const updatedContest = await Contest.findById(contestId).populate(
+//     winnerPopulate
+//   );
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Winner declared successfully",
+//     contestId: updatedContest._id,
+//     contestTitle: updatedContest.title,
+//     winner: updatedContest.winner,
+//     leaderboard,
+//     totalEvaluatedSubmissions: leaderboard.length,
+//   });
+// });
+
+// export const getAllWinners = asyncHandler(async (req, res) => {
+//   const contests = await Contest.find({
+//     winner: { $exists: true, $ne: null },
+//   })
+//     .populate(winnerPopulate)
+//     .select("title status startDate deadline winner")
+//     .sort({ createdAt: -1 });
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "All winners fetched successfully",
+//     totalWinners: contests.length,
+//     winners: contests.map((contest) => ({
+//       contestId: contest._id,
+//       contestTitle: contest.title,
+//       status: contest.status,
+//       startDate: contest.startDate,
+//       deadline: contest.deadline,
+//       winner: contest.winner,
+//     })),
+//   });
+// });
+
+// export const updateWinner = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+//   const winnerSubmissionId =
+//     req.body.winnerSubmissionId || req.body.submissionId || req.body.winnerId;
+
+//   if (!isValidObjectId(contestId) || !isValidObjectId(winnerSubmissionId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Valid contestId and winner submission id are required",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   const winnerSubmission = await Submission.findOne({
+//     _id: winnerSubmissionId,
+//     contest: contestId,
+//     status: "evaluated",
+//   })
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName");
+
+//   if (!winnerSubmission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Evaluated submission not found for this contest",
+//     });
+//   }
+
+//   contest.winner = winnerSubmission._id;
+//   contest.isClosed = true;
+//   contest.status = "completed";
+//   await contest.save();
+
+//   const updatedContest = await Contest.findById(contestId).populate(
+//     winnerPopulate
+//   );
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Winner updated successfully",
+//     contestId: updatedContest._id,
+//     contestTitle: updatedContest.title,
+//     winner: updatedContest.winner,
+//   });
+// });
+
+// export const deleteWinner = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+
+//   if (!isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Valid contestId is required",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   if (!contest.winner) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No winner declared for this contest",
+//     });
+//   }
+
+//   contest.winner = null;
+//   contest.isClosed = false;
+//   contest.status = getContestStatus(contest);
+//   await contest.save();
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Winner deleted successfully",
+//     contestId: contest._id,
+//     contestTitle: contest.title,
+//   });
+// });
+
+// export const updateWinnerDetails = asyncHandler(async (req, res) => {
+//   const { contestId } = req.params;
+//   const {
+//     name,
+//     email,
+//     phoneNumber,
+//     gender,
+//     teamName,
+//     githubLink,
+//     liveUrl,
+//     totalScore,
+//     remarks,
+//   } = req.body;
+
+//   if (!isValidObjectId(contestId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Valid contestId is required",
+//     });
+//   }
+
+//   const contest = await Contest.findById(contestId);
+
+//   if (!contest) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   if (!contest.winner) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "No winner declared for this contest",
+//     });
+//   }
+
+//   const winnerSubmission = await Submission.findById(contest.winner)
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName contest");
+
+//   if (!winnerSubmission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Winner submission not found",
+//     });
+//   }
+
+//   const allowedGenders = ["male", "female", "other", "prefer not to say"];
+
+//   if (winnerSubmission.user) {
+//     if (name !== undefined) {
+//       const normalizedName = name.trim();
+
+//       if (!normalizedName) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Winner name is required",
+//         });
+//       }
+
+//       winnerSubmission.user.name = normalizedName;
+//     }
+
+//     if (email !== undefined) {
+//       const normalizedEmail = email.toLowerCase().trim();
+
+//       if (!normalizedEmail) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Winner email is required",
+//         });
+//       }
+
+//       const existingUser = await User.findOne({
+//         email: normalizedEmail,
+//         _id: { $ne: winnerSubmission.user._id },
+//       }).select("_id");
+
+//       if (existingUser) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Email is already used by another user",
+//         });
+//       }
+
+//       winnerSubmission.user.email = normalizedEmail;
+//     }
+
+//     if (phoneNumber !== undefined) {
+//       winnerSubmission.user.phoneNumber = phoneNumber?.trim() || "";
+//     }
+
+//     if (gender !== undefined) {
+//       const normalizedGender = gender?.trim() || "";
+
+//       if (normalizedGender && !allowedGenders.includes(normalizedGender)) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid gender value",
+//         });
+//       }
+
+//       winnerSubmission.user.gender = normalizedGender || undefined;
+//     }
+
+//     await winnerSubmission.user.save();
+//   }
+
+//   if (teamName !== undefined) {
+//     if (!winnerSubmission.team) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Winner submission has no team",
+//       });
+//     }
+
+//     const normalizedTeamName = teamName.trim();
+
+//     if (!normalizedTeamName) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Team name is required",
+//       });
+//     }
+
+//     const existingTeam = await Team.findOne({
+//       contest: contestId,
+//       teamName: normalizedTeamName,
+//       _id: { $ne: winnerSubmission.team._id },
+//     }).select("_id");
+
+//     if (existingTeam) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Team name is already taken for this contest",
+//       });
+//     }
+
+//     winnerSubmission.team.teamName = normalizedTeamName;
+//     await winnerSubmission.team.save();
+//   }
+
+//   if (githubLink !== undefined) {
+//     const normalizedGithubLink = githubLink.trim();
+
+//     if (!normalizedGithubLink) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "GitHub link is required",
+//       });
+//     }
+
+//     winnerSubmission.githubLink = normalizedGithubLink;
+//   }
+
+//   if (liveUrl !== undefined) {
+//     winnerSubmission.liveUrl = liveUrl?.trim() || "";
+//   }
+
+//   if (totalScore !== undefined) {
+//     const normalizedScore = normalizeScore(totalScore);
+
+//     if (normalizedScore === null) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "A valid totalScore greater than or equal to 0 is required",
+//       });
+//     }
+
+//     winnerSubmission.totalScore = normalizedScore;
+//   }
+
+//   if (remarks !== undefined) {
+//     if (typeof remarks !== "string") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Remarks must be a string",
+//       });
+//     }
+
+//     winnerSubmission.remarks = remarks.trim();
+//   }
+
+//   winnerSubmission.status = "evaluated";
+//   await winnerSubmission.save();
+
+//   const updatedContest = await Contest.findById(contestId).populate(winnerPopulate);
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Winner details updated successfully",
+//     contestId: updatedContest._id,
+//     contestTitle: updatedContest.title,
+//     winner: updatedContest.winner,
+//   });
+// });
+
+// export const updateEvaluation = asyncHandler(async (req, res) => {
+//   const { id } = req.params;
+//   const { totalScore, remarks } = req.body;
+
+//   if (!isValidObjectId(id)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid submission id",
+//     });
+//   }
+
+//   const submission = await Submission.findById(id)
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName")
+//     .populate("contest", "title isClosed");
+
+//   if (!submission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Submission not found",
+//     });
+//   }
+
+//   if (submission.contest?.isClosed) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Winner already declared. Evaluation cannot be updated.",
+//     });
+//   }
+
+//   if (submission.status !== "evaluated") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "This submission has not been evaluated yet",
+//     });
+//   }
+
+//   if (totalScore !== undefined) {
+//     const normalizedScore = normalizeScore(totalScore);
+
+//     if (normalizedScore === null) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "A valid totalScore greater than or equal to 0 is required",
+//       });
+//     }
+
+//     submission.totalScore = normalizedScore;
+//   }
+
+//   if (remarks !== undefined) {
+//     if (typeof remarks !== "string") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Remarks must be a string",
+//       });
+//     }
+
+//     submission.remarks = remarks.trim();
+//   }
+
+//   await submission.save();
+//   await submission.populate("contest", "title");
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Evaluation updated successfully",
+//     submission,
+//   });
+// });
+
+// export const deleteEvaluation = asyncHandler(async (req, res) => {
+//   const { id } = req.params;
+
+//   if (!isValidObjectId(id)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid submission id",
+//     });
+//   }
+
+//   const submission = await Submission.findById(id)
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName")
+//     .populate("contest", "title isClosed");
+
+//   if (!submission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Submission not found",
+//     });
+//   }
+
+//   if (submission.contest?.isClosed) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Winner already declared. Evaluation cannot be deleted.",
+//     });
+//   }
+
+//   if (submission.status !== "evaluated") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "This submission is not evaluated yet",
+//     });
+//   }
+
+//   submission.totalScore = 0;
+//   submission.remarks = "";
+//   submission.status = "pending";
+
+//   await submission.save();
+//   await submission.populate("contest", "title");
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Evaluation deleted successfully",
+//     submission,
+//   });
+// });
+
+// export const updateSubmission = asyncHandler(async (req, res) => {
+//   const { id } = req.params;
+//   const { githubLink, liveUrl } = req.body;
+
+//   if (!isValidObjectId(id)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid submission id",
+//     });
+//   }
+
+//   const submission = await Submission.findById(id)
+//     .populate("contest", "title startDate deadline isClosed")
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName");
+
+//   if (!submission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Submission not found",
+//     });
+//   }
+
+//   const canManage = await canManageSubmission({
+//     submission,
+//     user: req.user,
+//   });
+
+//   if (!canManage) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "You are not allowed to update this submission",
+//     });
+//   }
+
+//   if (submission.contest?.isClosed) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Winner already declared. Submission cannot be updated.",
+//     });
+//   }
+
+//   if (req.user.role !== "admin" && !isContestActive(submission.contest)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Submission can only be updated while the contest is active",
+//     });
+//   }
+
+//   if (submission.status === "evaluated" && req.user.role !== "admin") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Evaluated submission cannot be updated",
+//     });
+//   }
+
+//   const nextGithubLink =
+//     githubLink !== undefined ? githubLink.trim() : submission.githubLink;
+//   const nextLiveUrl =
+//     liveUrl !== undefined ? liveUrl?.trim() || "" : submission.liveUrl || "";
+
+//   if (!nextGithubLink) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "GitHub link is required",
+//     });
+//   }
+
+//   const linksChanged =
+//     nextGithubLink !== (submission.githubLink || "") ||
+//     nextLiveUrl !== (submission.liveUrl || "");
+
+//   submission.githubLink = nextGithubLink;
+//   submission.liveUrl = nextLiveUrl;
+
+//   const shouldResetEvaluation =
+//     req.user.role === "admin" &&
+//     submission.status === "evaluated" &&
+//     linksChanged;
+
+//   if (shouldResetEvaluation) {
+//     submission.totalScore = 0;
+//     submission.remarks = "";
+//     submission.status = "pending";
+//   }
+
+//   await submission.save();
+//   await submission.populate("contest", "title");
+
+//   return res.status(200).json({
+//     success: true,
+//     message: shouldResetEvaluation
+//       ? "Submission updated successfully and evaluation reset to pending"
+//       : "Submission updated successfully",
+//     submission,
+//   });
+// });
+
+// export const deleteSubmission = asyncHandler(async (req, res) => {
+//   const { id } = req.params;
+
+//   if (!isValidObjectId(id)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid submission id",
+//     });
+//   }
+
+//   const submission = await Submission.findById(id)
+//     .populate("contest", "title startDate deadline isClosed")
+//     .populate("user", "name email phoneNumber gender")
+//     .populate("team", "teamName");
+
+//   if (!submission) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Submission not found",
+//     });
+//   }
+
+//   const canManage = await canManageSubmission({
+//     submission,
+//     user: req.user,
+//   });
+
+//   if (!canManage) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "You are not allowed to delete this submission",
+//     });
+//   }
+
+//   if (submission.contest?.isClosed) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Winner already declared. Submission cannot be deleted.",
+//     });
+//   }
+
+//   if (req.user.role !== "admin" && !isContestActive(submission.contest)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Submission can only be deleted while the contest is active",
+//     });
+//   }
+
+//   const contestId = submission.contest?._id || submission.contest;
+//   const teamId = submission.team?._id || submission.team;
+//   const userId = submission.user?._id || submission.user;
+
+//   if (teamId) {
+//     await Participation.updateMany(
+//       {
+//         contest: contestId,
+//         team: teamId,
+//       },
+//       {
+//         $unset: { status: 1 },
+//       }
+//     );
+//   } else {
+//     await Participation.updateOne(
+//       {
+//         contest: contestId,
+//         user: userId,
+//       },
+//       {
+//         $unset: { status: 1 },
+//       }
+//     );
+//   }
+
+//   await submission.deleteOne();
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Submission deleted successfully",
+//     submissionId: id,
+//     contestId,
+//   });
+// });
+
+
+
 import mongoose from "mongoose";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Submission } from "../models/submission.model.js";
@@ -7,11 +1712,28 @@ import { Participation } from "../models/participation.model.js";
 import { User } from "../models/user.model.js";
 import { Team } from "../models/team.model.js";
 
-// helper
+
+// =====================================================
+// HELPER: valid ObjectId check
+// বাংলা: id valid Mongo ObjectId কিনা check
+// English: validate MongoDB ObjectId
+// =====================================================
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+
+// =====================================================
+// HELPER: contest active কিনা
+// বাংলা: contest active status check
+// English: check if contest is active
+// =====================================================
 const isContestActive = (contest) => getContestStatus(contest) === "active";
 
+
+// =====================================================
+// HELPER: score normalize
+// বাংলা: totalScore number এ convert করবে
+// English: normalize evaluation score
+// =====================================================
 const normalizeScore = (value) => {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -26,12 +1748,24 @@ const normalizeScore = (value) => {
   return parsedScore;
 };
 
+
+// =====================================================
+// HELPER: rank add
+// বাংলা: leaderboard-এ rank বসাবে
+// English: add rank to sorted submissions
+// =====================================================
 const addSubmissionRanks = (submissions) =>
   submissions.map((submission, index) => ({
     rank: index + 1,
     ...submission.toObject(),
   }));
 
+
+// =====================================================
+// HELPER: permission check for submission
+// বাংলা: admin বা team member submission manage করতে পারবে
+// English: admin or team member can manage submission
+// =====================================================
 const canManageSubmission = async ({ submission, user }) => {
   if (!submission || !user) {
     return false;
@@ -41,34 +1775,43 @@ const canManageSubmission = async ({ submission, user }) => {
     return true;
   }
 
-  const submissionUserId = submission.user?._id || submission.user;
   const submissionTeamId = submission.team?._id || submission.team;
-  const contestId = submission.contest?._id || submission.contest;
 
   if (!submissionTeamId) {
-    return submissionUserId?.toString() === user._id.toString();
+    return false;
   }
 
-  const teamParticipation = await Participation.findOne({
-    user: user._id,
-    contest: contestId,
-    team: submissionTeamId,
-  }).select("_id");
+  const team = await Team.findById(submissionTeamId).select("members");
 
-  return !!teamParticipation;
+  if (!team) {
+    return false;
+  }
+
+  return team.members.some(
+    (memberId) => memberId.toString() === user._id.toString()
+  );
 };
 
+
+// =====================================================
+// HELPER: winner populate config
+// বাংলা: winner populate structure
+// English: populate config for winner
+// =====================================================
 const winnerPopulate = {
   path: "winner",
   populate: [
-    { path: "user", select: "name email phoneNumber gender" },
-    { path: "team", select: "teamName" },
+    { path: "submittedBy", select: "name email phoneNumber gender" },
+    { path: "team", select: "teamName members leader" },
   ],
 };
 
-// ================================
-// Submit Project
-// ================================
+
+// =====================================================
+// SUBMIT PROJECT
+// বাংলা: team project submit করবে
+// English: submit project for a contest
+// =====================================================
 export const submitProject = asyncHandler(async (req, res) => {
   const { contestId, githubLink, liveUrl } = req.body;
   const userId = req.user._id;
@@ -103,73 +1846,57 @@ export const submitProject = asyncHandler(async (req, res) => {
     });
   }
 
-  const participation = await Participation.findOne({
-    user: userId,
+  // বাংলা: user যেই team-এ আছে সেই team বের করো
+  // English: find user's team in this contest
+  const team = await Team.findOne({
     contest: contestId,
+    members: userId,
   });
 
-  if (!participation) {
+  if (!team) {
     return res.status(403).json({
       success: false,
       message: "You must join this contest before submitting.",
     });
   }
 
-  let existingSubmission = null;
-
-  if (participation.participationType === "team") {
-    if (!participation.team) {
-      return res.status(400).json({
-        success: false,
-        message: "Team participation found, but no team is assigned.",
-      });
-    }
-
-    existingSubmission = await Submission.findOne({
-      contest: contestId,
-      team: participation.team,
-    });
-  } else {
-    existingSubmission = await Submission.findOne({
-      contest: contestId,
-      user: userId,
-      team: null,
-    });
-  }
+  // বাংলা: একই team এক contest-এ একবারই submit করতে পারবে
+  // English: one team can submit only once per contest
+  const existingSubmission = await Submission.findOne({
+    contest: contestId,
+    team: team._id,
+  });
 
   if (existingSubmission) {
     return res.status(400).json({
       success: false,
-      message: "A submission already exists for you or your team in this contest.",
+      message: "A submission already exists for your team in this contest.",
     });
   }
 
   const submission = await Submission.create({
-    user: userId,
-    team: participation.team || null,
+    submittedBy: userId,
+    team: team._id,
     contest: contestId,
     githubLink: githubLink.trim(),
     liveUrl: liveUrl?.trim() || "",
   });
 
-  if (participation.participationType === "team") {
-    await Participation.updateMany(
-      {
-        contest: contestId,
-        team: participation.team,
-      },
-      {
-        status: "submitted",
-      }
-    );
-  } else {
-    participation.status = "submitted";
-    await participation.save();
-  }
+  // বাংলা: participation status submitted করে দাও
+  // English: mark participation as submitted
+  await Participation.updateOne(
+    {
+      contest: contestId,
+      team: team._id,
+    },
+    {
+      $set: { status: "submitted" },
+    }
+  );
 
   const populatedSubmission = await Submission.findById(submission._id)
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .populate("contest", "title");
 
   return res.status(201).json({
@@ -179,9 +1906,12 @@ export const submitProject = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// Get all submissions for one contest
-// ================================
+
+// =====================================================
+// GET ALL SUBMISSIONS FOR ONE CONTEST
+// বাংলা: নির্দিষ্ট contest-এর সব submission দেখাবে
+// English: get all submissions for a specific contest
+// =====================================================
 export const getSubmissionsByContest = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -193,8 +1923,8 @@ export const getSubmissionsByContest = asyncHandler(async (req, res) => {
   }
 
   const submissions = await Submission.find({ contest: contestId })
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName members")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .populate("contest", "title status startDate deadline")
     .sort({ totalScore: -1, createdAt: -1 });
 
@@ -216,13 +1946,25 @@ export const getSubmissionsByContest = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// Get my submissions
-// ================================
+
+// =====================================================
+// GET MY SUBMISSIONS
+// বাংলা: logged-in user যেসব team-এর member, সেই team submissions দেখাবে
+// English: get submissions belonging to teams of the logged-in user
+// =====================================================
 export const getMySubmissions = asyncHandler(async (req, res) => {
-  const submissions = await Submission.find({ user: req.user._id })
+  const teams = await Team.find({
+    members: req.user._id,
+  }).select("_id");
+
+  const teamIds = teams.map((team) => team._id);
+
+  const submissions = await Submission.find({
+    team: { $in: teamIds },
+  })
     .populate("contest", "title status startDate deadline")
-    .populate("team", "teamName")
+    .populate("team", "teamName members leader")
+    .populate("submittedBy", "name email phoneNumber gender")
     .sort({ createdAt: -1 });
 
   return res.status(200).json({
@@ -233,9 +1975,12 @@ export const getMySubmissions = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// Evaluate submission
-// ================================
+
+// =====================================================
+// EVALUATE SUBMISSION
+// বাংলা: admin/judge submission evaluate করবে
+// English: evaluate a submission
+// =====================================================
 export const evaluateSubmission = asyncHandler(async (req, res) => {
   const { totalScore, remarks } = req.body;
   const { id } = req.params;
@@ -264,8 +2009,8 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
   }
 
   const submission = await Submission.findById(id)
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .populate("contest", "title isClosed");
 
   if (!submission) {
@@ -299,103 +2044,46 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// Declare winner
-// ================================
-// export const declareWinner = asyncHandler(async (req, res) => {
-//   const { contestId } = req.params;
 
-//   if (!isValidObjectId(contestId)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Invalid contestId",
-//     });
-//   }
-
-//   const contest = await Contest.findById(contestId);
-
-//   if (!contest) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Contest not found",
-//     });
-//   }
-
-//   const submissions = await Submission.find({ contest: contestId })
-//     .sort({ totalScore: -1, createdAt: 1 })
-//     .populate("user", "name email phoneNumber gender")
-//     .populate("team", "teamName")
-//     .populate("contest", "title");
-
-//   if (submissions.length === 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "No submissions found to evaluate.",
-//     });
-//   }
-
-//   const evaluatedSubmissions = submissions.filter(
-//     (submission) => submission.status === "evaluated"
-//   );
-
-//   if (evaluatedSubmissions.length === 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
-//     });
-//   }
-
-//   const pendingSubmissions = submissions.filter(
-//     (submission) => submission.status !== "evaluated"
-//   );
-
-//   if (!contest.isClosed && pendingSubmissions.length > 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Evaluate all submissions before declaring the winner.",
-//       pendingSubmissions: pendingSubmissions.length,
-//     });
-//   }
-
-//   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
-//   const winnerAlreadyDeclared = contest.isClosed;
-
-//   if (!winnerAlreadyDeclared) {
-//     contest.isClosed = true;
-//     contest.status = "completed";
-//     await contest.save();
-//   }
-
-//   return res.status(200).json({
-//     success: true,
-//     message: winnerAlreadyDeclared
-//       ? "Winner already declared for this contest"
-//       : "Winner declared successfully",
-//     winner: leaderboard[0],
-//     leaderboard,
-//     totalEvaluatedSubmissions: leaderboard.length,
-//   });
-// });
-
-// ================================
-// 2) How many unique users submitted across all contests
-// ================================
+// =====================================================
+// UNIQUE PARTICIPANT COUNT
+// বাংলা: submission দেওয়া unique user count বের করবে
+// English: get unique participant count across all submitted teams
+// =====================================================
 export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
-  const users = await Submission.distinct("user");
+  const submissions = await Submission.find({})
+    .populate("team", "members")
+    .select("team");
+
+  const uniqueUsers = new Set();
+
+  submissions.forEach((submission) => {
+    const members = submission.team?.members || [];
+    members.forEach((memberId) => uniqueUsers.add(memberId.toString()));
+  });
 
   return res.status(200).json({
     success: true,
     message: "All contest unique participant count fetched successfully",
-    totalUsers: users.length,
+    totalUsers: uniqueUsers.size,
   });
 });
 
-// ================================
-// 3) How many contests current user submitted in
-// ================================
+
+// =====================================================
+// HOW MANY CONTESTS CURRENT USER SUBMITTED IN
+// বাংলা: logged-in user কয়টা contest-এ submitted team-এর member ছিল
+// English: get contest count where current user belongs to a submitted team
+// =====================================================
 export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
+  const teams = await Team.find({
+    members: req.user._id,
+  }).select("_id");
+
+  const teamIds = teams.map((team) => team._id);
+
   const contests = await Submission.distinct("contest", {
-    user: req.user._id,
+    team: { $in: teamIds },
   });
 
   return res.status(200).json({
@@ -406,9 +2094,12 @@ export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// ***4) Total contests that received at least one submission
-// ================================
+
+// =====================================================
+// TOTAL SUBMITTED CONTESTS WITH DETAILS
+// বাংলা: যেসব contest-এ submission আছে সেগুলোর report
+// English: get all contests that received submissions
+// =====================================================
 export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
   await Contest.syncStatuses();
 
@@ -423,8 +2114,8 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
   const result = await Promise.all(
     contests.map(async (contest) => {
       const submissions = await Submission.find({ contest: contest._id })
-        .populate("user", "name email phoneNumber gender")
-        .populate("team", "teamName");
+        .populate("submittedBy", "name email phoneNumber gender")
+        .populate("team", "teamName members leader");
 
       const uniqueStudentsMap = new Map();
       const evaluatedStudentsMap = new Map();
@@ -438,58 +2129,32 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
       );
 
       const submissionDetails = submissions.map((item) => {
-        if (item.user) {
-          uniqueStudentsMap.set(item.user._id.toString(), {
-            _id: item.user._id,
-            name: item.user.name,
-            email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
-            team: item.team
-              ? {
-                  _id: item.team._id,
-                  teamName: item.team.teamName,
-                }
-              : null,
-            githubLink: item.githubLink,
-            liveUrl: item.liveUrl,
-            submittedAt: item.createdAt,
-          });
+        const teamMembers = item.team?.members || [];
 
+        teamMembers.forEach((memberId) => {
+          uniqueStudentsMap.set(memberId.toString(), memberId.toString());
           if (item.status === "evaluated") {
-            evaluatedStudentsMap.set(item.user._id.toString(), {
-              _id: item.user._id,
-              name: item.user.name,
-              email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
-              team: item.team
-                ? {
-                    _id: item.team._id,
-                    teamName: item.team.teamName,
-                  }
-                : null,
-              totalScore: item.totalScore,
-              remarks: item.remarks,
-            });
+            evaluatedStudentsMap.set(memberId.toString(), memberId.toString());
           }
-        }
+        });
 
         return {
           submissionId: item._id,
-          student: item.user
+          submittedBy: item.submittedBy
             ? {
-                _id: item.user._id,
-                name: item.user.name,
-                email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
+                _id: item.submittedBy._id,
+                name: item.submittedBy.name,
+                email: item.submittedBy.email,
+                phoneNumber: item.submittedBy.phoneNumber || "",
+                gender: item.submittedBy.gender || "",
               }
             : null,
           team: item.team
             ? {
                 _id: item.team._id,
                 teamName: item.team.teamName,
+                members: item.team.members || [],
+                leader: item.team.leader || null,
               }
             : null,
           githubLink: item.githubLink,
@@ -504,19 +2169,21 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
 
       const evaluatedSubmissionDetails = evaluatedSubmissions.map((item) => ({
         submissionId: item._id,
-        student: item.user
+        submittedBy: item.submittedBy
           ? {
-              _id: item.user._id,
-              name: item.user.name,
-              email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
+              _id: item.submittedBy._id,
+              name: item.submittedBy.name,
+              email: item.submittedBy.email,
+              phoneNumber: item.submittedBy.phoneNumber || "",
+              gender: item.submittedBy.gender || "",
             }
           : null,
         team: item.team
           ? {
               _id: item.team._id,
               teamName: item.team.teamName,
+              members: item.team.members || [],
+              leader: item.team.leader || null,
             }
           : null,
         githubLink: item.githubLink,
@@ -528,18 +2195,13 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
         updatedAt: item.updatedAt,
       }));
 
-      const studentDetails = Array.from(uniqueStudentsMap.values());
-      const evaluatedStudentDetails = Array.from(evaluatedStudentsMap.values());
-
       return {
         ...contest.toObject(),
         totalSubmissions: submissions.length,
-        totalSubmittedStudents: studentDetails.length,
+        totalSubmittedStudents: uniqueStudentsMap.size,
         totalEvaluatedSubmissions: evaluatedSubmissions.length,
         totalPendingSubmissions: pendingSubmissions.length,
-        totalEvaluatedStudents: evaluatedStudentDetails.length,
-        studentDetails,
-        evaluatedStudentDetails,
+        totalEvaluatedStudents: evaluatedStudentsMap.size,
         submissionDetails,
         evaluatedSubmissionDetails,
       };
@@ -554,66 +2216,74 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// 5) Every contest summary: how many submissions each contest has
-// ================================
+
+// =====================================================
+// CONTEST SUBMISSION SUMMARY
+// বাংলা: contest-wise submission summary
+// English: summary of submissions grouped by contest
+// =====================================================
 export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
   await Contest.syncStatuses();
 
-  const summary = await Submission.aggregate([
-    {
-      $group: {
-        _id: "$contest",
-        totalSubmissions: { $sum: 1 },
-        uniqueStudents: { $addToSet: "$user" },
-        totalEvaluatedSubmissions: {
-          $sum: {
-            $cond: [{ $eq: ["$status", "evaluated"] }, 1, 0],
-          },
-        },
-        evaluatedStudents: {
-          $addToSet: {
-            $cond: [
-              { $eq: ["$status", "evaluated"] },
-              "$user",
-              "$$REMOVE",
-            ],
-          },
-        },
-      },
-    },
-    {
-      $lookup: {
-        from: "contests",
-        localField: "_id",
-        foreignField: "_id",
-        as: "contest",
-      },
-    },
-    {
-      $unwind: "$contest",
-    },
-    {
-      $project: {
-        _id: 0,
-        contestId: "$contest._id",
-        title: "$contest.title",
-        status: "$contest.status",
-        startDate: "$contest.startDate",
-        deadline: "$contest.deadline",
-        totalSubmissions: 1,
-        totalStudentsSubmitted: { $size: "$uniqueStudents" },
-        totalEvaluatedSubmissions: 1,
-        totalPendingSubmissions: {
-          $subtract: ["$totalSubmissions", "$totalEvaluatedSubmissions"],
-        },
-        totalEvaluatedStudents: { $size: "$evaluatedStudents" },
-      },
-    },
-    {
-      $sort: { totalSubmissions: -1 },
-    },
-  ]);
+  const submissions = await Submission.find({})
+    .populate("team", "members")
+    .populate("contest", "title status startDate deadline");
+
+  const contestMap = new Map();
+
+  submissions.forEach((submission) => {
+    const contest = submission.contest;
+    if (!contest) return;
+
+    const key = contest._id.toString();
+
+    if (!contestMap.has(key)) {
+      contestMap.set(key, {
+        contestId: contest._id,
+        title: contest.title,
+        status: contest.status,
+        startDate: contest.startDate,
+        deadline: contest.deadline,
+        totalSubmissions: 0,
+        uniqueStudents: new Set(),
+        totalEvaluatedSubmissions: 0,
+        evaluatedStudents: new Set(),
+      });
+    }
+
+    const entry = contestMap.get(key);
+
+    entry.totalSubmissions += 1;
+
+    const members = submission.team?.members || [];
+    members.forEach((memberId) => {
+      entry.uniqueStudents.add(memberId.toString());
+
+      if (submission.status === "evaluated") {
+        entry.evaluatedStudents.add(memberId.toString());
+      }
+    });
+
+    if (submission.status === "evaluated") {
+      entry.totalEvaluatedSubmissions += 1;
+    }
+  });
+
+  const summary = Array.from(contestMap.values())
+    .map((item) => ({
+      contestId: item.contestId,
+      title: item.title,
+      status: item.status,
+      startDate: item.startDate,
+      deadline: item.deadline,
+      totalSubmissions: item.totalSubmissions,
+      totalStudentsSubmitted: item.uniqueStudents.size,
+      totalEvaluatedSubmissions: item.totalEvaluatedSubmissions,
+      totalPendingSubmissions:
+        item.totalSubmissions - item.totalEvaluatedSubmissions,
+      totalEvaluatedStudents: item.evaluatedStudents.size,
+    }))
+    .sort((a, b) => b.totalSubmissions - a.totalSubmissions);
 
   return res.status(200).json({
     success: true,
@@ -623,9 +2293,12 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
   });
 });
 
-// ================================
-// SINGLE CONTEST + STUDENT DETAILS
-// ================================
+
+// =====================================================
+// SINGLE CONTEST SUBMISSION REPORT
+// বাংলা: single contest submission details report
+// English: report for one contest with submission details
+// =====================================================
 export const getSingleContestSubmissionReport = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -650,17 +2323,12 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
   }
 
   const submissions = await Submission.find({ contest: contestId })
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName members")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .sort({ createdAt: -1 });
 
-  const uniqueStudentIds = [
-    ...new Set(
-      submissions
-        .filter((item) => item.user?._id)
-        .map((item) => item.user._id.toString())
-    ),
-  ];
+  const uniqueStudentIds = new Set();
+  const evaluatedStudentIds = new Set();
 
   const evaluatedSubmissions = submissions.filter(
     (item) => item.status === "evaluated"
@@ -670,13 +2338,15 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
     (item) => item.status !== "evaluated"
   );
 
-  const evaluatedStudentIds = [
-    ...new Set(
-      evaluatedSubmissions
-        .filter((item) => item.user?._id)
-        .map((item) => item.user._id.toString())
-    ),
-  ];
+  submissions.forEach((item) => {
+    const members = item.team?.members || [];
+    members.forEach((memberId) => uniqueStudentIds.add(memberId.toString()));
+  });
+
+  evaluatedSubmissions.forEach((item) => {
+    const members = item.team?.members || [];
+    members.forEach((memberId) => evaluatedStudentIds.add(memberId.toString()));
+  });
 
   return res.status(200).json({
     success: true,
@@ -688,20 +2358,20 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
       startDate: contest.startDate,
       deadline: contest.deadline,
       totalSubmissions: submissions.length,
-      totalStudentsSubmitted: uniqueStudentIds.length,
+      totalStudentsSubmitted: uniqueStudentIds.size,
       totalEvaluatedSubmissions: evaluatedSubmissions.length,
       totalPendingSubmissions: pendingSubmissions.length,
-      totalEvaluatedStudents: evaluatedStudentIds.length,
+      totalEvaluatedStudents: evaluatedStudentIds.size,
     },
-    studentDetails: submissions.map((item) => ({
+    submissionDetails: submissions.map((item) => ({
       submissionId: item._id,
-      student: item.user
+      submittedBy: item.submittedBy
         ? {
-            _id: item.user._id,
-            name: item.user.name,
-            email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
+            _id: item.submittedBy._id,
+            name: item.submittedBy.name,
+            email: item.submittedBy.email,
+            phoneNumber: item.submittedBy.phoneNumber || "",
+            gender: item.submittedBy.gender || "",
           }
         : null,
       team: item.team
@@ -709,6 +2379,7 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
             _id: item.team._id,
             teamName: item.team.teamName,
             members: item.team.members || [],
+            leader: item.team.leader || null,
           }
         : null,
       githubLink: item.githubLink,
@@ -720,13 +2391,13 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
     })),
     evaluatedSubmissionDetails: evaluatedSubmissions.map((item) => ({
       submissionId: item._id,
-      student: item.user
+      submittedBy: item.submittedBy
         ? {
-            _id: item.user._id,
-            name: item.user.name,
-            email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
+            _id: item.submittedBy._id,
+            name: item.submittedBy.name,
+            email: item.submittedBy.email,
+            phoneNumber: item.submittedBy.phoneNumber || "",
+            gender: item.submittedBy.gender || "",
           }
         : null,
       team: item.team
@@ -734,6 +2405,7 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
             _id: item.team._id,
             teamName: item.team.teamName,
             members: item.team.members || [],
+            leader: item.team.leader || null,
           }
         : null,
       githubLink: item.githubLink,
@@ -747,6 +2419,11 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
 });
 
 
+// =====================================================
+// GET EVALUATED USERS BY CONTEST
+// বাংলা: evaluated submission-এর unique user/member list
+// English: get evaluated users by contest
+// =====================================================
 export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -761,19 +2438,17 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
     contest: contestId,
     status: "evaluated",
   })
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName");
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader");
 
   const uniqueUsersMap = new Map();
 
   submissions.forEach((item) => {
-    if (item.user) {
-      uniqueUsersMap.set(item.user._id.toString(), {
-        _id: item.user._id,
-        name: item.user.name,
-        email: item.user.email,
-                phoneNumber: item.user.phoneNumber || "",
-                gender: item.user.gender || "",
+    const members = item.team?.members || [];
+
+    members.forEach((memberId) => {
+      uniqueUsersMap.set(memberId.toString(), {
+        userId: memberId,
         team: item.team
           ? {
               _id: item.team._id,
@@ -784,7 +2459,7 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
         remarks: item.remarks,
         evaluatedAt: item.updatedAt,
       });
-    }
+    });
   });
 
   const evaluatedUsers = Array.from(uniqueUsersMap.values());
@@ -798,185 +2473,12 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
   });
 });
 
-// export const declareWinner = asyncHandler(async (req, res) => {
-//   const { contestId } = req.params;
 
-//   if (!isValidObjectId(contestId)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Invalid contestId",
-//     });
-//   }
-
-//   const contest = await Contest.findById(contestId);
-
-//   if (!contest) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Contest not found",
-//     });
-//   }
-
-//   const submissions = await Submission.find({ contest: contestId })
-//     .sort({ totalScore: -1, createdAt: 1 })
-//     .populate("user", "name email phoneNumber gender")
-//     .populate("team", "teamName")
-//     .populate("contest", "title");
-
-//   if (submissions.length === 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "No submissions found to evaluate.",
-//     });
-//   }
-
-//   const evaluatedSubmissions = submissions.filter(
-//     (submission) => submission.status === "evaluated"
-//   );
-
-//   if (evaluatedSubmissions.length === 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message:
-//         "No evaluated submissions found. Evaluate submissions before declaring a winner.",
-//     });
-//   }
-
-//   const pendingSubmissions = submissions.filter(
-//     (submission) => submission.status !== "evaluated"
-//   );
-
-//   if (!contest.isClosed && pendingSubmissions.length > 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Evaluate all submissions before declaring the winner.",
-//       pendingSubmissions: pendingSubmissions.length,
-//     });
-//   }
-
-//   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
-//   const winnerAlreadyDeclared = contest.isClosed;
-
-//   if (!winnerAlreadyDeclared) {
-//     contest.isClosed = true;
-//     contest.status = "completed";
-//     contest.winner = leaderboard[0]._id; // Ã¢Å“â€¦ save winner in DB
-//     await contest.save();
-//   }
-
-//   const updatedContest = await Contest.findById(contestId).populate({
-//     path: "winner",
-//     populate: [
-//       { path: "user", select: "name email phoneNumber gender" },
-//       { path: "team", select: "teamName" },
-//     ],
-//   });
-
-//   return res.status(200).json({
-//     success: true,
-//     message: winnerAlreadyDeclared
-//       ? "Winner already declared for this contest"
-//       : "Winner declared successfully",
-//     contestId: contest._id,
-//     contestTitle: contest.title,
-//     winner: updatedContest?.winner || leaderboard[0],
-//     leaderboard,
-//     totalEvaluatedSubmissions: leaderboard.length,
-//   });
-// });
-
-
-// export const declareWinner = asyncHandler(async (req, res) => {
-//   const { contestId } = req.params;
-
-//   if (!isValidObjectId(contestId)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Invalid contestId",
-//     });
-//   }
-
-//   const contest = await Contest.findById(contestId);
-
-//   if (!contest) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Contest not found",
-//     });
-//   }
-
-//   const submissions = await Submission.find({ contest: contestId })
-//     .populate("user", "name email phoneNumber gender")
-//     .populate("team", "teamName")
-//     .populate("contest", "title");
-
-//   if (submissions.length === 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "No submissions found to evaluate.",
-//     });
-//   }
-
-//   const evaluatedSubmissions = submissions
-//     .filter((submission) => submission.status === "evaluated")
-//     .sort((a, b) => {
-//       if (b.totalScore !== a.totalScore) {
-//         return b.totalScore - a.totalScore;
-//       }
-//       return new Date(a.createdAt) - new Date(b.createdAt);
-//     });
-
-//   if (evaluatedSubmissions.length === 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
-//     });
-//   }
-
-//   const pendingSubmissions = submissions.filter(
-//     (submission) => submission.status !== "evaluated"
-//   );
-
-//   if (!contest.isClosed && pendingSubmissions.length > 0) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Evaluate all submissions before declaring the winner.",
-//       pendingSubmissions: pendingSubmissions.length,
-//     });
-//   }
-
-//   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
-//   const winnerAlreadyDeclared = contest.isClosed;
-
-//   if (!winnerAlreadyDeclared) {
-//     contest.isClosed = true;
-//     contest.status = "completed";
-//     contest.winner = leaderboard[0]._id;
-//     await contest.save();
-//   }
-
-//   const updatedContest = await Contest.findById(contestId).populate({
-//     path: "winner",
-//     populate: [
-//       { path: "user", select: "name email phoneNumber gender" },
-//       { path: "team", select: "teamName" },
-//     ],
-//   });
-
-//   return res.status(200).json({
-//     success: true,
-//     message: winnerAlreadyDeclared
-//       ? "Winner already declared for this contest"
-//       : "Winner declared successfully",
-//     contestId: contest._id,
-//     contestTitle: contest.title,
-//     winner: updatedContest?.winner || leaderboard[0],
-//     leaderboard,
-//     totalEvaluatedSubmissions: leaderboard.length,
-//   });
-// });
-
-
+// =====================================================
+// DECLARE WINNER
+// বাংলা: deadline-এর পরে evaluated submission থেকে winner declare করবে
+// English: declare winner after deadline
+// =====================================================
 export const declareWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -999,7 +2501,6 @@ export const declareWinner = asyncHandler(async (req, res) => {
   const now = new Date();
   const deadline = new Date(contest.deadline);
 
-  // before deadline -> cannot declare winner
   if (now < deadline) {
     return res.status(400).json({
       success: false,
@@ -1007,7 +2508,6 @@ export const declareWinner = asyncHandler(async (req, res) => {
     });
   }
 
-  // already declared
   if (contest.isClosed) {
     const alreadyClosedContest = await Contest.findById(contestId).populate(
       winnerPopulate
@@ -1023,8 +2523,8 @@ export const declareWinner = asyncHandler(async (req, res) => {
   }
 
   const submissions = await Submission.find({ contest: contestId })
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .populate("contest", "title");
 
   if (submissions.length === 0) {
@@ -1046,7 +2546,8 @@ export const declareWinner = asyncHandler(async (req, res) => {
   if (evaluatedSubmissions.length === 0) {
     return res.status(400).json({
       success: false,
-      message: "No evaluated submissions found. Evaluate submissions before declaring a winner.",
+      message:
+        "No evaluated submissions found. Evaluate submissions before declaring a winner.",
     });
   }
 
@@ -1054,7 +2555,6 @@ export const declareWinner = asyncHandler(async (req, res) => {
     (submission) => submission.status !== "evaluated"
   );
 
-  // strict rule -> all submissions must be evaluated
   if (pendingSubmissions.length > 0) {
     return res.status(400).json({
       success: false,
@@ -1085,6 +2585,12 @@ export const declareWinner = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// GET ALL WINNERS
+// বাংলা: সব contest winner list
+// English: get all winners
+// =====================================================
 export const getAllWinners = asyncHandler(async (req, res) => {
   const contests = await Contest.find({
     winner: { $exists: true, $ne: null },
@@ -1108,6 +2614,12 @@ export const getAllWinners = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// UPDATE WINNER
+// বাংলা: contest winner submission manually change করা যাবে
+// English: update winner manually
+// =====================================================
 export const updateWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
   const winnerSubmissionId =
@@ -1134,8 +2646,8 @@ export const updateWinner = asyncHandler(async (req, res) => {
     contest: contestId,
     status: "evaluated",
   })
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName");
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader");
 
   if (!winnerSubmission) {
     return res.status(404).json({
@@ -1162,6 +2674,12 @@ export const updateWinner = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// DELETE WINNER
+// বাংলা: winner remove করবে
+// English: delete winner from contest
+// =====================================================
 export const deleteWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -1201,6 +2719,12 @@ export const deleteWinner = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// UPDATE WINNER DETAILS
+// বাংলা: winner submission / team / submitter info update করবে
+// English: update winner details
+// =====================================================
 export const updateWinnerDetails = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
   const {
@@ -1239,8 +2763,8 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
   }
 
   const winnerSubmission = await Submission.findById(contest.winner)
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName contest");
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName contest members leader");
 
   if (!winnerSubmission) {
     return res.status(404).json({
@@ -1251,7 +2775,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
 
   const allowedGenders = ["male", "female", "other", "prefer not to say"];
 
-  if (winnerSubmission.user) {
+  if (winnerSubmission.submittedBy) {
     if (name !== undefined) {
       const normalizedName = name.trim();
 
@@ -1262,7 +2786,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
         });
       }
 
-      winnerSubmission.user.name = normalizedName;
+      winnerSubmission.submittedBy.name = normalizedName;
     }
 
     if (email !== undefined) {
@@ -1277,7 +2801,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
 
       const existingUser = await User.findOne({
         email: normalizedEmail,
-        _id: { $ne: winnerSubmission.user._id },
+        _id: { $ne: winnerSubmission.submittedBy._id },
       }).select("_id");
 
       if (existingUser) {
@@ -1287,11 +2811,11 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
         });
       }
 
-      winnerSubmission.user.email = normalizedEmail;
+      winnerSubmission.submittedBy.email = normalizedEmail;
     }
 
     if (phoneNumber !== undefined) {
-      winnerSubmission.user.phoneNumber = phoneNumber?.trim() || "";
+      winnerSubmission.submittedBy.phoneNumber = phoneNumber?.trim() || "";
     }
 
     if (gender !== undefined) {
@@ -1304,10 +2828,10 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
         });
       }
 
-      winnerSubmission.user.gender = normalizedGender || undefined;
+      winnerSubmission.submittedBy.gender = normalizedGender || undefined;
     }
 
-    await winnerSubmission.user.save();
+    await winnerSubmission.submittedBy.save();
   }
 
   if (teamName !== undefined) {
@@ -1388,7 +2912,9 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
   winnerSubmission.status = "evaluated";
   await winnerSubmission.save();
 
-  const updatedContest = await Contest.findById(contestId).populate(winnerPopulate);
+  const updatedContest = await Contest.findById(contestId).populate(
+    winnerPopulate
+  );
 
   return res.status(200).json({
     success: true,
@@ -1399,6 +2925,12 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// UPDATE EVALUATION
+// বাংলা: evaluated submission-এর score/remarks update করবে
+// English: update evaluation details
+// =====================================================
 export const updateEvaluation = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { totalScore, remarks } = req.body;
@@ -1411,8 +2943,8 @@ export const updateEvaluation = asyncHandler(async (req, res) => {
   }
 
   const submission = await Submission.findById(id)
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .populate("contest", "title isClosed");
 
   if (!submission) {
@@ -1470,6 +3002,12 @@ export const updateEvaluation = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// DELETE EVALUATION
+// বাংলা: evaluation reset/delete করবে
+// English: delete/reset evaluation
+// =====================================================
 export const deleteEvaluation = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -1481,8 +3019,8 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
   }
 
   const submission = await Submission.findById(id)
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName")
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader")
     .populate("contest", "title isClosed");
 
   if (!submission) {
@@ -1520,6 +3058,12 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// UPDATE SUBMISSION
+// বাংলা: submission links update করবে
+// English: update submission links
+// =====================================================
 export const updateSubmission = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { githubLink, liveUrl } = req.body;
@@ -1533,8 +3077,8 @@ export const updateSubmission = asyncHandler(async (req, res) => {
 
   const submission = await Submission.findById(id)
     .populate("contest", "title startDate deadline isClosed")
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName");
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader");
 
   if (!submission) {
     return res.status(404).json({
@@ -1578,6 +3122,7 @@ export const updateSubmission = asyncHandler(async (req, res) => {
 
   const nextGithubLink =
     githubLink !== undefined ? githubLink.trim() : submission.githubLink;
+
   const nextLiveUrl =
     liveUrl !== undefined ? liveUrl?.trim() || "" : submission.liveUrl || "";
 
@@ -1618,6 +3163,12 @@ export const updateSubmission = asyncHandler(async (req, res) => {
   });
 });
 
+
+// =====================================================
+// DELETE SUBMISSION
+// বাংলা: submission delete করবে
+// English: delete a submission
+// =====================================================
 export const deleteSubmission = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -1630,8 +3181,8 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
 
   const submission = await Submission.findById(id)
     .populate("contest", "title startDate deadline isClosed")
-    .populate("user", "name email phoneNumber gender")
-    .populate("team", "teamName");
+    .populate("submittedBy", "name email phoneNumber gender")
+    .populate("team", "teamName members leader");
 
   if (!submission) {
     return res.status(404).json({
@@ -1668,29 +3219,16 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
 
   const contestId = submission.contest?._id || submission.contest;
   const teamId = submission.team?._id || submission.team;
-  const userId = submission.user?._id || submission.user;
 
-  if (teamId) {
-    await Participation.updateMany(
-      {
-        contest: contestId,
-        team: teamId,
-      },
-      {
-        $unset: { status: 1 },
-      }
-    );
-  } else {
-    await Participation.updateOne(
-      {
-        contest: contestId,
-        user: userId,
-      },
-      {
-        $unset: { status: 1 },
-      }
-    );
-  }
+  await Participation.updateOne(
+    {
+      contest: contestId,
+      team: teamId,
+    },
+    {
+      $set: { status: "pending" },
+    }
+  );
 
   await submission.deleteOne();
 
@@ -1701,4 +3239,3 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
     contestId,
   });
 });
-
