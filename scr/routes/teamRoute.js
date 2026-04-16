@@ -108,20 +108,20 @@
 
 
 
-import express from "express";
-import {
-  teamCreate,
-  getMyTeams,
-  getTeamsByContest,
-  deleteTeam,
-  inviteMember,
-  confirmInvitation,
-  getMyInvitations,
-} from "../controllers/team.controller.js";
+// import express from "express";
+// import {
+//   teamCreate,
+//   getMyTeams,
+//   getTeamsByContest,
+//   deleteTeam,
+//   inviteMember,
+//   confirmInvitation,
+//   getMyInvitations,
+// } from "../controllers/team.controller.js";
 
- import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
+//  import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
 
-  const teamRouter = express.Router();
+//   const teamRouter = express.Router();
 
 // // create team
 // teamRouter.post("/", verifyJWT, teamCreate);
@@ -168,22 +168,44 @@ import {
 // export default teamRouter;
 
 
+import express from "express";
+import {
+  teamCreate,
+  getMyTeams,
+  getTeamsByContest,
+  deleteTeam,
+  inviteMember,
+  confirmInvitation,
+  getMyInvitations,
+  updateTeam,
+} from "../controllers/team.controller.js";
 
+import { verifyJWT } from "../middleware/checkAuthUser.js";
+
+const teamRouter = express.Router();
+
+// create team
 teamRouter.post("/create", verifyJWT, teamCreate);
+
+// logged in user's teams
 teamRouter.get("/my-teams", verifyJWT, getMyTeams);
+
+// logged in user's pending invitations
 teamRouter.get("/my-invitations", verifyJWT, getMyInvitations);
-teamRouter.get("/invitations", verifyJWT, getMyInvitations);
 
-teamRouter.post("/invite/confirm", verifyJWT, confirmInvitation);
+// accept invitation by token
 teamRouter.post("/invite/confirm/:token", verifyJWT, confirmInvitation);
-teamRouter.post("/invitations/:id/accept", verifyJWT, confirmInvitation);
-teamRouter.patch("/invitations/:id/accept", verifyJWT, confirmInvitation);
 
+// get all teams of a contest
 teamRouter.get("/contest/:contestId", getTeamsByContest);
 
+// leader invites a member
 teamRouter.post("/:id/invite", verifyJWT, inviteMember);
-teamRouter.post("/:id/invitations", verifyJWT, inviteMember);
 
+// update team
+teamRouter.put("/:id", verifyJWT, updateTeam);
+
+// delete team
 teamRouter.delete("/:id", verifyJWT, deleteTeam);
 
 export default teamRouter;

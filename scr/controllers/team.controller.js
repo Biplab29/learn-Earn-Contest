@@ -1329,15 +1329,15 @@
 
 
 
-import asyncHandler from "../middleware/asyncHandler.js";
-import crypto from "crypto";
+// import asyncHandler from "../middleware/asyncHandler.js";
+// import crypto from "crypto";
 
-import { Team } from "../models/team.model.js";
-import { User } from "../models/user.model.js";
-import { Contest, getContestStatus } from "../models/contest.model.js";
-import { Participation } from "../models/participation.model.js";
-import { Invitation } from "../models/invitation.model.js";
-import { Submission } from "../models/submission.model.js";
+// import { Team } from "../models/team.model.js";
+// import { User } from "../models/user.model.js";
+// import { Contest, getContestStatus } from "../models/contest.model.js";
+// import { Participation } from "../models/participation.model.js";
+// import { Invitation } from "../models/invitation.model.js";
+// import { Submission } from "../models/submission.model.js";
 
 
 // CREATE TEAM
@@ -1453,10 +1453,28 @@ import { Submission } from "../models/submission.model.js";
 //   });
 // });
 
+import crypto from "crypto";
+import asyncHandler from "../middleware/asyncHandler.js";
+import { Team } from "../models/team.model.js";
+import { Contest } from "../models/contest.model.js";
+import { User } from "../models/user.model.js";
+import { Invitation } from "../models/invitation.model.js";
+import { Participation } from "../models/participation.model.js";
+import { Submission } from "../models/submission.model.js";
+
+
+// =====================================================
+// CREATE TEAM
+// user direct join করবে না
+// team create করলেই join হয়ে যাবে
+// solo হলে single-member team
+// team হলে leader + invite flow
+// both হলে user choose করবে solo বা team
+// =====================================================
 export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, contest, teamType } = req.body;
 
-  //  required check
+  // required field check
   if (!teamName || !contest || !teamType) {
     return res.status(400).json({
       success: false,
@@ -1464,6 +1482,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
+  // request এ শুধু solo বা team আসতে পারবে
   if (!["solo", "team"].includes(teamType)) {
     return res.status(400).json({
       success: false,
@@ -1489,18 +1508,32 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // contest rule check
+  // participationType validation
+  // contest solo হলে only solo
   if (contestDoc.participationType === "solo" && teamType !== "solo") {
     return res.status(400).json({
       success: false,
-      message: "Only solo allowed",
+      message: "Only solo allowed in this contest",
     });
   }
 
+  // contest team হলে only team
   if (contestDoc.participationType === "team" && teamType !== "team") {
     return res.status(400).json({
       success: false,
-      message: "Only team allowed",
+      message: "Only team allowed in this contest",
+    });
+  }
+
+  // contest both হলে solo/team দুইটাই allowed
+  if (
+    contestDoc.participationType !== "solo" &&
+    contestDoc.participationType !== "team" &&
+    contestDoc.participationType !== "both"
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid contest participation type",
     });
   }
 
@@ -1513,7 +1546,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // already joined check
+  // same contest এ user আগে থেকেই কোনো team এর member কিনা
   const alreadyJoined = await Team.findOne({
     contest,
     members: req.user._id,
@@ -1526,7 +1559,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // unique team name
+  // unique team name per contest
   const existingTeamName = await Team.findOne({
     contest,
     teamName: trimmedTeamName,
@@ -1539,13 +1572,8 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  
-  if (teamType === "solo") {
-    // ensure only 1 member
-    var members = [req.user._id];
-  } else {
-    var members = [req.user._id]; // start with leader
-  }
+  // creator নিজেই first member
+  const members = [req.user._id];
 
   // create team
   const team = await Team.create({
@@ -1553,10 +1581,10 @@ export const teamCreate = asyncHandler(async (req, res) => {
     leader: req.user._id,
     members,
     contest,
-    teamType,
+    teamType, // solo or team
   });
 
-  // participation
+  // participation create
   await Participation.create({
     contest,
     type: teamType,
@@ -1566,13 +1594,16 @@ export const teamCreate = asyncHandler(async (req, res) => {
   const populatedTeam = await Team.findById(team._id)
     .populate("leader", "name email")
     .populate("members", "name email")
-    .populate("contest", "title participationType");
+    .populate(
+      "contest",
+      "title participationType maxTeamSize startDate deadline"
+    );
 
   return res.status(201).json({
     success: true,
     message:
       teamType === "solo"
-        ? "Solo team created & joined"
+        ? "Solo team created and joined successfully"
         : "Team created successfully",
     team: populatedTeam,
   });
@@ -1580,8 +1611,8 @@ export const teamCreate = asyncHandler(async (req, res) => {
 
 // =====================================================
 // INVITE MEMBER
-// বাংলা: team leader অন্য user-কে invite করবে
-// English: Team leader invites another user
+// teamType = team হলে leader invite পাঠাতে পারবে
+// teamType = solo হলে invite যাবে না
 // =====================================================
 export const inviteMember = asyncHandler(async (req, res) => {
   const { userId } = req.body;
@@ -1602,6 +1633,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
+  // solo team এ invite allowed না
   if (team.teamType === "solo") {
     return res.status(400).json({
       success: false,
@@ -1609,6 +1641,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
+  // only leader can invite
   if (team.leader.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -1616,6 +1649,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
+  // নিজেকে invite করা যাবে না
   if (userId.toString() === req.user._id.toString()) {
     return res.status(400).json({
       success: false,
@@ -1641,6 +1675,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
+  // already member কিনা
   const alreadyMember = team.members.some(
     (member) => member.toString() === user._id.toString()
   );
@@ -1652,6 +1687,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
+  // same contest এ অন্য team এ joined কিনা
   const alreadyJoined = await Team.findOne({
     contest: team.contest._id,
     members: user._id,
@@ -1664,6 +1700,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
+  // pending invite already আছে কিনা
   const existingInvite = await Invitation.findOne({
     team: team._id,
     invitedUser: user._id,
@@ -1684,10 +1721,12 @@ export const inviteMember = asyncHandler(async (req, res) => {
     tokenExpiry: { $gt: new Date() },
   });
 
-  if (team.members.length + pendingInvites >= team.contest.maxTeamSize) {
+  const maxTeamSize = team.contest.maxTeamSize || 1;
+
+  if (team.members.length + pendingInvites >= maxTeamSize) {
     return res.status(400).json({
       success: false,
-      message: `Team is full (max ${team.contest.maxTeamSize} members)`,
+      message: `Team is full (max ${maxTeamSize} members)`,
     });
   }
 
@@ -1705,19 +1744,30 @@ export const inviteMember = asyncHandler(async (req, res) => {
   const populatedInvitation = await Invitation.findById(invitation._id)
     .populate("invitedUser", "name email")
     .populate("invitedBy", "name email")
-    .populate("team", "teamName teamType contest leader members");
+    .populate({
+      path: "team",
+      select: "teamName teamType contest leader members",
+      populate: [
+        { path: "leader", select: "name email" },
+        { path: "members", select: "name email" },
+        {
+          path: "contest",
+          select: "title startDate deadline participationType maxTeamSize",
+        },
+      ],
+    });
 
   return res.status(200).json({
     success: true,
-    message: "Invitation sent",
+    message: "Invitation sent successfully",
     invitation: populatedInvitation,
   });
 });
 
-
+// =====================================================
 // CONFIRM INVITATION
-// invited user token deya team join korbe
-
+// invited user token দিয়ে team join করবে
+// =====================================================
 export const confirmInvitation = asyncHandler(async (req, res) => {
   const token = req.body.token || req.params.token;
 
@@ -1741,12 +1791,16 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   }
 
   if (invitation.tokenExpiry < new Date()) {
+    invitation.status = "expired";
+    await invitation.save();
+
     return res.status(400).json({
       success: false,
       message: "Invitation expired",
     });
   }
 
+  // only invited user can accept
   if (invitation.invitedUser.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -1784,10 +1838,12 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  if (team.members.length >= team.contest.maxTeamSize) {
+  const maxTeamSize = team.contest.maxTeamSize || 1;
+
+  if (team.members.length >= maxTeamSize) {
     return res.status(400).json({
       success: false,
-      message: `Team is full (max ${team.contest.maxTeamSize} members)`,
+      message: `Team is full (max ${maxTeamSize} members)`,
     });
   }
 
@@ -1797,6 +1853,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   invitation.status = "accepted";
   await invitation.save();
 
+  // same contest এর অন্য pending invitation auto reject
   const sameContestTeamIds = await Team.find({
     contest: team.contest._id,
   }).distinct("_id");
@@ -1816,7 +1873,10 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   const populatedTeam = await Team.findById(team._id)
     .populate("leader", "name email")
     .populate("members", "name email")
-    .populate("contest", "title startDate deadline participationType");
+    .populate(
+      "contest",
+      "title startDate deadline participationType maxTeamSize"
+    );
 
   return res.status(200).json({
     success: true,
@@ -1825,10 +1885,9 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   });
 });
 
-
+// =====================================================
 // GET MY INVITATIONS
-// logged in user er pending invitation list
-
+// =====================================================
 export const getMyInvitations = asyncHandler(async (req, res) => {
   const invitations = await Invitation.find({
     invitedUser: req.user._id,
@@ -1858,17 +1917,19 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
   });
 });
 
-
+// =====================================================
 // GET MY TEAMS
-// logged in user jesob team a ache segulo k dhekabo
-
+// =====================================================
 export const getMyTeams = asyncHandler(async (req, res) => {
   const teams = await Team.find({
     members: req.user._id,
   })
     .populate("leader", "name email")
     .populate("members", "name email")
-    .populate("contest", "title startDate deadline participationType");
+    .populate(
+      "contest",
+      "title startDate deadline participationType maxTeamSize"
+    );
 
   return res.status(200).json({
     success: true,
@@ -1876,17 +1937,19 @@ export const getMyTeams = asyncHandler(async (req, res) => {
   });
 });
 
-
+// =====================================================
 // GET TEAMS BY CONTEST
-// Get all teams by contest
-
+// =====================================================
 export const getTeamsByContest = asyncHandler(async (req, res) => {
   const teams = await Team.find({
     contest: req.params.contestId,
   })
     .populate("leader", "name email")
     .populate("members", "name email")
-    .populate("contest", "title startDate deadline participationType");
+    .populate(
+      "contest",
+      "title startDate deadline participationType maxTeamSize"
+    );
 
   return res.status(200).json({
     success: true,
@@ -1894,10 +1957,10 @@ export const getTeamsByContest = asyncHandler(async (req, res) => {
   });
 });
 
-
+// =====================================================
 // UPDATE TEAM
-//  team leader team name update korte parbe na
-
+// only leader can update team name
+// =====================================================
 export const updateTeam = asyncHandler(async (req, res) => {
   const { teamName } = req.body;
 
@@ -1957,7 +2020,10 @@ export const updateTeam = asyncHandler(async (req, res) => {
   const updatedTeam = await Team.findById(team._id)
     .populate("leader", "name email")
     .populate("members", "name email")
-    .populate("contest", "title startDate deadline participationType");
+    .populate(
+      "contest",
+      "title startDate deadline participationType maxTeamSize"
+    );
 
   return res.status(200).json({
     success: true,
@@ -1966,10 +2032,10 @@ export const updateTeam = asyncHandler(async (req, res) => {
   });
 });
 
-
+// =====================================================
 // DELETE TEAM
-//  team leader team delete korte parbe
-
+// only leader can delete team
+// =====================================================
 export const deleteTeam = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id);
 
@@ -2002,7 +2068,7 @@ export const deleteTeam = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: "Team deleted",
+    message: "Team deleted successfully",
   });
 });
 

@@ -834,7 +834,7 @@
 
 
 
-  import asyncHandler from "../middleware/asyncHandler.js";
+import asyncHandler from "../middleware/asyncHandler.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
 import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
 import {

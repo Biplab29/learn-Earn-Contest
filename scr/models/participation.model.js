@@ -66,12 +66,6 @@ const participationSchema = new mongoose.Schema(
       required: true,
     },
 
-    participationType: {
-      type: String,
-      enum: ["solo", "team"],
-      required: true,
-    },
-
     team: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",

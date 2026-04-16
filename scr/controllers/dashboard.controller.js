@@ -115,14 +115,10 @@ import { User } from "../models/user.model.js";
 import { Submission } from "../models/submission.model.js";
 
 
-// =====================================================
 // GET DASHBOARD STATS
-// বাংলা: admin dashboard-এর সব summary data একসাথে দেবে
-// English: return dashboard summary statistics
-// =====================================================
+
+
 export const getDashboardStats = asyncHandler(async (req, res) => {
-  // বাংলা: contest status sync করে নিচ্ছে
-  // English: sync contest statuses before fetching stats
   await Contest.syncStatuses();
 
   const [
@@ -136,34 +132,30 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     totalSubmissions,
     pendingEvaluations,
   ] = await Promise.all([
-    // =====================================================
+  
     // ACTIVE CONTESTS
-    // বাংলা: active contest count
-    // English: count active contests
-    // =====================================================
+    //active contest count
+
     Contest.countDocuments({
       status: "active",
     }),
 
-    // বাংলা: active contest list
-    // English: fetch active contest list
+    //active contest list
+    
     Contest.find({
       status: "active",
     })
       .select("title description startDate deadline rewards image status participationType")
       .sort({ deadline: 1 }),
 
-    // =====================================================
-    // COMPLETED CONTESTS
-    // বাংলা: completed contest count
-    // English: count completed contests
-    // =====================================================
+    // completed contest count
+
     Contest.countDocuments({
       status: "completed",
     }),
 
-    // বাংলা: completed contest list
-    // English: fetch completed contest list
+    //completed contest list
+  
     Contest.find({
       status: "completed",
     })
@@ -179,33 +171,24 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       status: "upcoming",
     }),
 
-    // বাংলা: upcoming contest list
-    // English: fetch upcoming contest list
+    //upcoming contest list
+
     Contest.find({
       status: "upcoming",
     })
       .select("title description startDate deadline rewards image status participationType")
       .sort({ startDate: 1 }),
 
-    // =====================================================
+
     // TOTAL USERS
-    // বাংলা: total registered users
-    // English: count total users
-    // =====================================================
+  
     User.countDocuments(),
 
-    // =====================================================
+
     // TOTAL SUBMISSIONS
-    // বাংলা: total submissions
-    // English: count total submissions
-    // =====================================================
+ 
     Submission.countDocuments(),
 
-    // =====================================================
-    // PENDING EVALUATIONS
-    // বাংলা: evaluate না হওয়া submission count
-    // English: count pending submission evaluations
-    // =====================================================
     Submission.countDocuments({ status: "pending" }),
   ]);
 

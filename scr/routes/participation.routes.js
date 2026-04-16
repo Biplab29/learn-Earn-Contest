@@ -47,26 +47,23 @@ import { verifyJWT } from "../middleware/checkAuthUser.js";
 const participationRouter = express.Router();
 
 
-// =====================================================
-// GET MY PARTICIPATIONS
-// বাংলা: logged-in user যেসব team/contest-এ আছে সেগুলোর participation data
-// English: Get participation data of the logged-in user
+// // GET MY PARTICIPATIONS
+//logged-in user jesob team/contest a ache segulor participation data
+// Get participation data of the logged-in user
 // =====================================================
 participationRouter.get("/my-participations", verifyJWT, getMyParticipations);
 
 
-// =====================================================
 // GET MY HISTORY
-// বাংলা: logged-in student-এর সব contest history
-// English: Get full contest history of the logged-in user
+//  Get full contest history of the logged-in user
 // =====================================================
 participationRouter.get("/my-history", verifyJWT, getStudentContestHistory);
 
 
 // =====================================================
 // GET CONTEST PARTICIPANTS
-// বাংলা: নির্দিষ্ট contest-এর সব participant teams and members
-// English: Get all participants of a specific contest
+// nirdishto contest er  participant teams and members
+// Get all participants of a specific contest
 // =====================================================
 participationRouter.get("/contest/:contestId/participants", getContestParticipants);
 

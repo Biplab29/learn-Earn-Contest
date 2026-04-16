@@ -117,12 +117,8 @@ import { Participation } from "../models/participation.model.js";
 
 // =====================================================
 // GET MY PARTICIPATIONS
-// বাংলা: logged-in user যেসব team-এর member, সেগুলোর participation info দেখাবে
-// English: Get participation data for teams where logged-in user is a member
 // =====================================================
 export const getMyParticipations = asyncHandler(async (req, res) => {
-  // বাংলা: user যেসব team-এ আছে সেগুলো বের করো
-  // English: find teams where current user is a member
   const teams = await Team.find({
     members: req.user._id,
   })
@@ -131,18 +127,12 @@ export const getMyParticipations = asyncHandler(async (req, res) => {
     .populate("members", "name email")
     .sort({ createdAt: -1 });
 
-  // বাংলা: team ids collect করো
-  // English: collect team ids
   const teamIds = teams.map((team) => team._id);
 
-  // বাংলা: ঐ team গুলোর participation record বের করো
-  // English: get participation records for those teams
   const participations = await Participation.find({
     team: { $in: teamIds },
   }).sort({ createdAt: -1 });
 
-  // বাংলা: team + participation merge করো
-  // English: merge team and participation data
   const merged = teams.map((team) => {
     const participation = participations.find(
       (p) => p.team.toString() === team._id.toString()
@@ -165,14 +155,10 @@ export const getMyParticipations = asyncHandler(async (req, res) => {
 
 // =====================================================
 // GET CONTEST PARTICIPANTS
-// বাংলা: নির্দিষ্ট contest-এর সব team ও তাদের member list দেখাবে
-// English: Get all participant teams and members for a specific contest
 // =====================================================
 export const getContestParticipants = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
-  // বাংলা: contest-এর সব team বের করো
-  // English: find all teams for the contest
   const teams = await Team.find({
     contest: contestId,
   })
@@ -180,14 +166,10 @@ export const getContestParticipants = asyncHandler(async (req, res) => {
     .populate("members", "name email")
     .populate("contest", "title");
 
-  // বাংলা: contest-এর সব participation record বের করো
-  // English: get all participation records of the contest
   const participations = await Participation.find({
     contest: contestId,
   }).populate("team", "teamName teamType");
 
-  // বাংলা: team data + participation status combine করো
-  // English: combine team data with participation status
   const participants = teams.map((team) => {
     const participation = participations.find(
       (p) => p.team?._id?.toString() === team._id.toString()
@@ -214,14 +196,10 @@ export const getContestParticipants = asyncHandler(async (req, res) => {
 
 // =====================================================
 // GET STUDENT CONTEST HISTORY
-// বাংলা: logged-in user যে সব contest-এ member হিসেবে আছে, তার history দেখাবে
-// English: Get contest history of the logged-in student
 // =====================================================
 export const getStudentContestHistory = asyncHandler(async (req, res) => {
   const studentId = req.user._id;
 
-  // বাংলা: user যেসব team-এর member, সেগুলো বের করো
-  // English: find all teams where user is a member
   const teams = await Team.find({
     members: studentId,
   })
@@ -230,18 +208,12 @@ export const getStudentContestHistory = asyncHandler(async (req, res) => {
     .populate("members", "name email")
     .sort({ createdAt: -1 });
 
-  // বাংলা: team ids collect করো
-  // English: collect team ids
   const teamIds = teams.map((team) => team._id);
 
-  // বাংলা: team-based participation বের করো
-  // English: fetch participation records for those teams
   const participations = await Participation.find({
     team: { $in: teamIds },
   });
 
-  // বাংলা: history array বানাও
-  // English: build history array
   const history = teams.map((team) => {
     const participation = participations.find(
       (p) => p.team.toString() === team._id.toString()
@@ -250,13 +222,14 @@ export const getStudentContestHistory = asyncHandler(async (req, res) => {
     return {
       team,
       participationStatus: participation?.status || "pending",
-      participationType: participation?.participationType || team.teamType,
+      
+      // ✅ CHANGED HERE: participationType এখন সরাসরি team.teamType থেকে আসবে 
+      participationType: team.teamType, 
+      
       joinedAt: participation?.createdAt || team.createdAt,
     };
   });
 
-  // বাংলা: summary calculate করো
-  // English: calculate summary info
   const totalParticipations = history.length;
 
   const completedSubmissions = history.filter(
@@ -277,4 +250,4 @@ export const getStudentContestHistory = asyncHandler(async (req, res) => {
   });
 });
 
-console.log("perticipation controller is working");
+console.log("participation controller is working");
