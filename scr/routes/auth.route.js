@@ -63,7 +63,7 @@ userRouter.put("/user/update/:id", verifyJWT, updateUser);
 // বাংলা: সব user list, শুধু admin দেখতে পারবে
 // English: get all users, admin only
 // =====================================================
-userRouter.get("/users", verifyJWT, authorizeRoles("admin"), getAllUsers);
+userRouter.get("/users", verifyJWT, getAllUsers);
 
 
 // =====================================================

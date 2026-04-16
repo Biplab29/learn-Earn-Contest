@@ -1,7 +1,4 @@
 
-
-
-
 import mongoose from "mongoose";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Submission } from "../models/submission.model.js";
