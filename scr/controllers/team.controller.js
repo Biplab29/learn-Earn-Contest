@@ -776,6 +776,559 @@
 // });
 
 
+// import asyncHandler from "../middleware/asyncHandler.js";
+// import crypto from "crypto";
+
+// import { Team } from "../models/team.model.js";
+// import { User } from "../models/user.model.js";
+// import { Contest, getContestStatus } from "../models/contest.model.js";
+// import { Participation } from "../models/participation.model.js";
+// import { Invitation } from "../models/invitation.model.js";
+
+
+// // =====================================================
+// // CREATE TEAM
+// // বাংলা: নতুন team create করবে, আর contest-এ join করাবে
+// // English: Create a new team and join the contest
+// // =====================================================
+// export const teamCreate = asyncHandler(async (req, res) => {
+//   const { teamName, contest, teamType } = req.body;
+
+//   // বাংলা: required field check
+//   // English: validate required fields
+//   if (!teamName || !contest || !teamType) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Team name, contest and teamType are required",
+//     });
+//   }
+
+//   // বাংলা: teamType only solo or team হবে
+//   // English: only solo or team is allowed
+//   if (!["solo", "team"].includes(teamType)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "teamType must be solo or team",
+//     });
+//   }
+
+//   // বাংলা: contest আছে কিনা check
+//   // English: check contest existence
+//   const contestDoc = await Contest.findById(contest);
+//   if (!contestDoc) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Contest not found",
+//     });
+//   }
+
+//   // বাংলা: contest deadline পার হয়ে গেলে join করা যাবে না
+//   // English: do not allow join if contest is completed
+//   if (getContestStatus(contestDoc) === "completed") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Contest deadline passed",
+//     });
+//   }
+
+//   // বাংলা: contest type অনুযায়ী teamType match করতে হবে
+//   // English: validate contest participation type
+//   if (contestDoc.participationType === "solo" && teamType !== "solo") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "This contest allows only solo participation",
+//     });
+//   }
+
+//   if (contestDoc.participationType === "team" && teamType !== "team") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "This contest allows only team participation",
+//     });
+//   }
+
+//   // বাংলা: একই contest-এ same user already আছে কিনা check
+//   // English: block same user from joining same contest twice
+//   const alreadyJoined = await Team.findOne({
+//     contest,
+//     members: req.user._id,
+//   });
+
+//   if (alreadyJoined) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "You already joined this contest",
+//     });
+//   }
+
+//   // বাংলা: একই contest-এ same team name duplicate block
+//   // English: prevent duplicate team name inside same contest
+//   const existingTeamName = await Team.findOne({
+//     contest,
+//     teamName: teamName.trim(),
+//   });
+
+//   if (existingTeamName) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Team name already exists in this contest",
+//     });
+//   }
+
+//   // বাংলা: নতুন team create
+//   // English: create new team
+//   const team = await Team.create({
+//     teamName: teamName.trim(),
+//     leader: req.user._id,
+//     members: [req.user._id],
+//     contest,
+//     teamType,
+//   });
+
+//   // বাংলা: team-based participation record create
+//   // English: create team-based participation
+//   await Participation.create({
+//     contest,
+//     participationType: teamType,
+//     team: team._id,
+//     status: "pending",
+//   });
+
+//   return res.status(201).json({
+//     success: true,
+//     message: "Team created successfully",
+//     team,
+//   });
+// });
+
+// // INVITE MEMBER
+// // team member অন্য user-কে invite করবে
+
+// export const inviteMember = asyncHandler(async (req, res) => {
+//   const { userId } = req.body;
+
+//   if (!userId) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "User id required",
+//     });
+//   }
+
+  
+//   const team = await Team.findById(req.params.id).populate("contest");
+
+//   if (!team) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Team not found",
+//     });
+//   }
+
+//   //solo team invite allowed na
+//   if (team.teamType === "solo") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Solo team cannot invite members",
+//     });
+//   }
+
+//   //only team leader/member invite kortee parbe
+
+//   const isMember = team.members.some(
+//     (member) => member.toString() === req.user._id.toString()
+//   );
+
+//   if (!isMember) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "Only team members can invite",
+//     });
+//   }
+
+//   // বাংলা: নিজেরে নিজে invite করা যাবে না
+//   // English: cannot invite yourself
+//   if (userId.toString() === req.user._id.toString()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "You cannot invite yourself",
+//     });
+//   }
+
+//   //contest complete hole invite hobe na
+
+//   if (getContestStatus(team.contest) === "completed") {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Contest deadline passed",
+//     });
+//   }
+
+//   // বাংলা: invited user আছে কিনা check
+//   // English: check invited user existence
+//   const user = await User.findById(userId);
+//   if (!user) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "User not found",
+//     });
+//   }
+
+//   //  check if already a member
+//   const alreadyMember = team.members.some(
+//     (member) => member.toString() === user._id.toString()
+//   );
+
+//   if (alreadyMember) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "User already in team",
+//     });
+//   }
+
+//   // block if user already joined another team in same contest
+//   const alreadyJoined = await Team.findOne({
+//     contest: team.contest._id,
+//     members: user._id,
+//   });
+
+//   if (alreadyJoined) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "User already in another team in this contest",
+//     });
+//   }
+
+//   // বাংলা: একই team থেকে pending invitation already আছে কিনা
+//   // English: prevent duplicate pending invitations
+//   const existingInvite = await Invitation.findOne({
+//     team: team._id,
+//     invitedUser: user._id,
+//     status: "pending",
+//     tokenExpiry: { $gt: new Date() },
+//   });
+
+//   if (existingInvite) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invitation already sent",
+//     });
+//   }
+
+//   // বাংলা: maxTeamSize exceed করবে কিনা check
+//   // English: check maximum team size
+//   const pendingInvites = await Invitation.countDocuments({
+//     team: team._id,
+//     status: "pending",
+//     tokenExpiry: { $gt: new Date() },
+//   });
+
+//   if (team.members.length + pendingInvites >= team.contest.maxTeamSize) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Team is full (max ${team.contest.maxTeamSize} members)`,
+//     });
+//   }
+
+//   // বাংলা: invitation token generate
+//   // English: generate invitation token
+//   const token = crypto.randomBytes(32).toString("hex");
+
+//   // বাংলা: invitation create
+//   // English: create invitation record
+//   const invitation = await Invitation.create({
+//     invitedUser: user._id,
+//     team: team._id,
+//     invitedBy: req.user._id,
+//     token,
+//     tokenExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000),
+//     status: "pending",
+//   });
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Invitation sent",
+//     invitation,
+//   });
+// });
+
+
+// // =====================================================
+// // CONFIRM INVITATION
+// // বাংলা: invited user token দিয়ে team join করবে
+// // English: Confirm invitation and join team
+// // =====================================================
+// export const confirmInvitation = asyncHandler(async (req, res) => {
+//   const token = req.body.token || req.params.token;
+
+//   // বাংলা: token লাগবে
+//   // English: token is required
+//   if (!token) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Token required",
+//     });
+//   }
+
+//   // বাংলা: valid pending invitation find
+//   // English: find valid pending invitation
+//   const invitation = await Invitation.findOne({
+//     token,
+//     status: "pending",
+//   });
+
+//   if (!invitation) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid token",
+//     });
+//   }
+
+//   // বাংলা: token expired কিনা check
+//   // English: check invitation expiry
+//   if (invitation.tokenExpiry < new Date()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invitation expired",
+//     });
+//   }
+
+//   // বাংলা: invitation যার জন্য, সেই user-ই accept করবে
+//   // English: only invited user can accept
+//   if (invitation.invitedUser.toString() !== req.user._id.toString()) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "This invitation is not for you",
+//     });
+//   }
+
+//   // বাংলা: team find করো
+//   // English: find the invited team
+//   const team = await Team.findById(invitation.team).populate("contest");
+
+//   if (!team) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Team not found",
+//     });
+//   }
+
+//   // বাংলা: আবার same contest-এ already joined কিনা check
+//   // English: prevent same user joining same contest twice
+//   const alreadyJoined = await Team.findOne({
+//     contest: team.contest._id,
+//     members: req.user._id,
+//   });
+
+//   if (alreadyJoined) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "You already joined this contest",
+//     });
+//   }
+
+//   // বাংলা: team full কিনা check
+//   // English: check team capacity
+//   if (team.members.length >= team.contest.maxTeamSize) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Team is full (max ${team.contest.maxTeamSize} members)`,
+//     });
+//   }
+
+//   // বাংলা: new member add
+//   // English: add invited user to members
+//   team.members.push(req.user._id);
+//   await team.save();
+
+//   // বাংলা: accepted mark করো
+//   // English: mark invitation as accepted
+//   invitation.status = "accepted";
+//   await invitation.save();
+
+//   // বাংলা: same user-এর other pending invites reject
+//   // English: reject other pending invites for same user in same team
+//   await Invitation.updateMany(
+//     {
+//       _id: { $ne: invitation._id },
+//       team: team._id,
+//       invitedUser: req.user._id,
+//       status: "pending",
+//     },
+//     {
+//       $set: { status: "rejected" },
+//     }
+//   );
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Joined team successfully",
+//     team,
+//   });
+// });
+
+
+// // =====================================================
+// // GET MY INVITATIONS
+// // বাংলা: logged in user-এর pending invitation list
+// // English: Get my pending invitations
+// // =====================================================
+// export const getMyInvitations = asyncHandler(async (req, res) => {
+//   const invitations = await Invitation.find({
+//     invitedUser: req.user._id,
+//     status: "pending",
+//     tokenExpiry: { $gt: new Date() },
+//   })
+//     .populate("team", "teamName teamType contest leader members")
+//     .populate("invitedUser", "name email")
+//     .populate("invitedBy", "name email")
+//     .sort({ createdAt: -1 });
+
+//   return res.status(200).json({
+//     success: true,
+//     count: invitations.length,
+//     invitations,
+//   });
+// });
+
+
+// // =====================================================
+// // GET MY TEAMS
+// // বাংলা: logged in user যেসব team-এ আছে সেগুলো দেখাবে
+// // English: Get all teams of the logged-in user
+// // =====================================================
+// export const getMyTeams = asyncHandler(async (req, res) => {
+//   const teams = await Team.find({
+//     members: req.user._id,
+//   })
+//     .populate("leader", "name email")
+//     .populate("members", "name email")
+//     .populate("contest", "title startDate deadline participationType");
+
+//   return res.status(200).json({
+//     success: true,
+//     teams,
+//   });
+// });
+
+
+// // =====================================================
+// // GET TEAMS BY CONTEST
+// // বাংলা: নির্দিষ্ট contest-এর সব team দেখাবে
+// // English: Get all teams by contest
+// // =====================================================
+// export const getTeamsByContest = asyncHandler(async (req, res) => {
+//   const teams = await Team.find({
+//     contest: req.params.contestId,
+//   })
+//     .populate("leader", "name email")
+//     .populate("members", "name email")
+//     .populate("contest", "title startDate deadline participationType");
+
+//   return res.status(200).json({
+//     success: true,
+//     teams,
+//   });
+// });
+
+
+// // =====================================================
+// // UPDATE TEAM
+// // বাংলা: team leader team name update করতে পারবে
+// // English: Team leader can update team name
+// // =====================================================
+// export const updateTeam = asyncHandler(async (req, res) => {
+//   const { teamName } = req.body;
+
+//   // বাংলা: team find
+//   // English: find team by id
+//   const team = await Team.findById(req.params.id);
+
+//   if (!team) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Team not found",
+//     });
+//   }
+
+//   // বাংলা: only leader update করতে পারবে
+//   // English: only leader can update the team
+//   if (team.leader.toString() !== req.user._id.toString()) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "Only leader can update team",
+//     });
+//   }
+
+//   // বাংলা: teamName দিলে update হবে
+//   // English: update team name if provided
+//   if (teamName) {
+//     const trimmedName = teamName.trim();
+
+//     const existingTeamName = await Team.findOne({
+//       _id: { $ne: team._id },
+//       contest: team.contest,
+//       teamName: trimmedName,
+//     });
+
+//     if (existingTeamName) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Team name already exists in this contest",
+//       });
+//     }
+
+//     team.teamName = trimmedName;
+//   }
+
+//   await team.save();
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Team updated successfully",
+//     team,
+//   });
+// });
+
+
+
+// // team leader team delete korte parbe
+
+// export const deleteTeam = asyncHandler(async (req, res) => {
+//   const team = await Team.findById(req.params.id);
+
+//   if (!team) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Team not found",
+//     });
+//   }
+
+//   // বাংলা: only leader delete করতে পারবে
+//   // English: only leader can delete the team
+//   if (team.leader.toString() !== req.user._id.toString()) {
+//     return res.status(403).json({
+//       success: false,
+//       message: "Only leader can delete",
+//     });
+//   }
+
+//   // বাংলা: related participation & invitation delete
+//   // English: delete related participation and invitations
+//   await Participation.deleteMany({ team: team._id });
+//   await Invitation.deleteMany({ team: team._id });
+
+//   await team.deleteOne();
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Team deleted",
+//   });
+// });
+
+// console.log("team controller is working");
+
+
+
 import asyncHandler from "../middleware/asyncHandler.js";
 import crypto from "crypto";
 
@@ -784,7 +1337,7 @@ import { User } from "../models/user.model.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js";
 import { Invitation } from "../models/invitation.model.js";
-
+import { Submission } from "../models/submission.model.js";
 
 // =====================================================
 // CREATE TEAM
@@ -794,8 +1347,6 @@ import { Invitation } from "../models/invitation.model.js";
 export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, contest, teamType } = req.body;
 
-  // বাংলা: required field check
-  // English: validate required fields
   if (!teamName || !contest || !teamType) {
     return res.status(400).json({
       success: false,
@@ -803,8 +1354,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: teamType only solo or team হবে
-  // English: only solo or team is allowed
   if (!["solo", "team"].includes(teamType)) {
     return res.status(400).json({
       success: false,
@@ -812,9 +1361,8 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: contest আছে কিনা check
-  // English: check contest existence
   const contestDoc = await Contest.findById(contest);
+
   if (!contestDoc) {
     return res.status(404).json({
       success: false,
@@ -822,17 +1370,15 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: contest deadline পার হয়ে গেলে join করা যাবে না
-  // English: do not allow join if contest is completed
-  if (getContestStatus(contestDoc) === "completed") {
+  const contestStatus = getContestStatus(contestDoc);
+
+  if (contestStatus === "completed") {
     return res.status(400).json({
       success: false,
       message: "Contest deadline passed",
     });
   }
 
-  // বাংলা: contest type অনুযায়ী teamType match করতে হবে
-  // English: validate contest participation type
   if (contestDoc.participationType === "solo" && teamType !== "solo") {
     return res.status(400).json({
       success: false,
@@ -847,8 +1393,15 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: একই contest-এ same user already আছে কিনা check
-  // English: block same user from joining same contest twice
+  const trimmedTeamName = teamName.trim();
+
+  if (!trimmedTeamName) {
+    return res.status(400).json({
+      success: false,
+      message: "Team name is required",
+    });
+  }
+
   const alreadyJoined = await Team.findOne({
     contest,
     members: req.user._id,
@@ -861,11 +1414,9 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: একই contest-এ same team name duplicate block
-  // English: prevent duplicate team name inside same contest
   const existingTeamName = await Team.findOne({
     contest,
-    teamName: teamName.trim(),
+    teamName: trimmedTeamName,
   });
 
   if (existingTeamName) {
@@ -875,18 +1426,14 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: নতুন team create
-  // English: create new team
   const team = await Team.create({
-    teamName: teamName.trim(),
+    teamName: trimmedTeamName,
     leader: req.user._id,
     members: [req.user._id],
     contest,
     teamType,
   });
 
-  // বাংলা: team-based participation record create
-  // English: create team-based participation
   await Participation.create({
     contest,
     participationType: teamType,
@@ -894,24 +1441,26 @@ export const teamCreate = asyncHandler(async (req, res) => {
     status: "pending",
   });
 
+  const populatedTeam = await Team.findById(team._id)
+    .populate("leader", "name email phoneNumber")
+    .populate("members", "name email phoneNumber")
+    .populate("contest", "title startDate deadline participationType");
+
   return res.status(201).json({
     success: true,
     message: "Team created successfully",
-    team,
+    team: populatedTeam,
   });
 });
 
-
 // =====================================================
 // INVITE MEMBER
-// বাংলা: team member অন্য user-কে invite করবে
-// English: Team member can invite another user
+// বাংলা: team leader অন্য user-কে invite করবে
+// English: Team leader invites another user
 // =====================================================
 export const inviteMember = asyncHandler(async (req, res) => {
   const { userId } = req.body;
 
-  // বাংলা: userId লাগবে
-  // English: userId is required
   if (!userId) {
     return res.status(400).json({
       success: false,
@@ -919,8 +1468,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: team find করো
-  // English: find the team
   const team = await Team.findById(req.params.id).populate("contest");
 
   if (!team) {
@@ -930,8 +1477,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: solo team-এ invite allowed না
-  // English: invite is not allowed for solo teams
   if (team.teamType === "solo") {
     return res.status(400).json({
       success: false,
@@ -939,21 +1484,13 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: শুধু team leader/member invite করতে পারবে
-  // English: only existing team members can invite
-  const isMember = team.members.some(
-    (member) => member.toString() === req.user._id.toString()
-  );
-
-  if (!isMember) {
+  if (team.leader.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
-      message: "Only team members can invite",
+      message: "Only team leader can invite members",
     });
   }
 
-  // বাংলা: নিজেরে নিজে invite করা যাবে না
-  // English: cannot invite yourself
   if (userId.toString() === req.user._id.toString()) {
     return res.status(400).json({
       success: false,
@@ -961,18 +1498,17 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: contest complete হলে invite হবে না
-  // English: no invitation after contest deadline
-  if (getContestStatus(team.contest) === "completed") {
+  const contestStatus = getContestStatus(team.contest);
+
+  if (contestStatus === "completed") {
     return res.status(400).json({
       success: false,
       message: "Contest deadline passed",
     });
   }
 
-  // বাংলা: invited user আছে কিনা check
-  // English: check invited user existence
   const user = await User.findById(userId);
+
   if (!user) {
     return res.status(404).json({
       success: false,
@@ -980,8 +1516,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: already team member কিনা check
-  // English: check if already a member
   const alreadyMember = team.members.some(
     (member) => member.toString() === user._id.toString()
   );
@@ -993,8 +1527,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: same contest-এ অন্য team-এ already আছে কিনা
-  // English: block if user already joined another team in same contest
   const alreadyJoined = await Team.findOne({
     contest: team.contest._id,
     members: user._id,
@@ -1007,8 +1539,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: একই team থেকে pending invitation already আছে কিনা
-  // English: prevent duplicate pending invitations
   const existingInvite = await Invitation.findOne({
     team: team._id,
     invitedUser: user._id,
@@ -1023,8 +1553,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: maxTeamSize exceed করবে কিনা check
-  // English: check maximum team size
   const pendingInvites = await Invitation.countDocuments({
     team: team._id,
     status: "pending",
@@ -1038,12 +1566,8 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: invitation token generate
-  // English: generate invitation token
   const token = crypto.randomBytes(32).toString("hex");
 
-  // বাংলা: invitation create
-  // English: create invitation record
   const invitation = await Invitation.create({
     invitedUser: user._id,
     team: team._id,
@@ -1053,13 +1577,17 @@ export const inviteMember = asyncHandler(async (req, res) => {
     status: "pending",
   });
 
+  const populatedInvitation = await Invitation.findById(invitation._id)
+    .populate("invitedUser", "name email")
+    .populate("invitedBy", "name email")
+    .populate("team", "teamName teamType contest leader members");
+
   return res.status(200).json({
     success: true,
     message: "Invitation sent",
-    invitation,
+    invitation: populatedInvitation,
   });
 });
-
 
 // =====================================================
 // CONFIRM INVITATION
@@ -1069,8 +1597,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
 export const confirmInvitation = asyncHandler(async (req, res) => {
   const token = req.body.token || req.params.token;
 
-  // বাংলা: token লাগবে
-  // English: token is required
   if (!token) {
     return res.status(400).json({
       success: false,
@@ -1078,8 +1604,6 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: valid pending invitation find
-  // English: find valid pending invitation
   const invitation = await Invitation.findOne({
     token,
     status: "pending",
@@ -1092,8 +1616,6 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: token expired কিনা check
-  // English: check invitation expiry
   if (invitation.tokenExpiry < new Date()) {
     return res.status(400).json({
       success: false,
@@ -1101,8 +1623,6 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: invitation যার জন্য, সেই user-ই accept করবে
-  // English: only invited user can accept
   if (invitation.invitedUser.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -1110,8 +1630,6 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: team find করো
-  // English: find the invited team
   const team = await Team.findById(invitation.team).populate("contest");
 
   if (!team) {
@@ -1121,8 +1639,15 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: আবার same contest-এ already joined কিনা check
-  // English: prevent same user joining same contest twice
+  const contestStatus = getContestStatus(team.contest);
+
+  if (contestStatus === "completed") {
+    return res.status(400).json({
+      success: false,
+      message: "Contest deadline passed",
+    });
+  }
+
   const alreadyJoined = await Team.findOne({
     contest: team.contest._id,
     members: req.user._id,
@@ -1135,8 +1660,6 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: team full কিনা check
-  // English: check team capacity
   if (team.members.length >= team.contest.maxTeamSize) {
     return res.status(400).json({
       success: false,
@@ -1144,22 +1667,20 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: new member add
-  // English: add invited user to members
   team.members.push(req.user._id);
   await team.save();
 
-  // বাংলা: accepted mark করো
-  // English: mark invitation as accepted
   invitation.status = "accepted";
   await invitation.save();
 
-  // বাংলা: same user-এর other pending invites reject
-  // English: reject other pending invites for same user in same team
+  const sameContestTeamIds = await Team.find({
+    contest: team.contest._id,
+  }).distinct("_id");
+
   await Invitation.updateMany(
     {
       _id: { $ne: invitation._id },
-      team: team._id,
+      team: { $in: sameContestTeamIds },
       invitedUser: req.user._id,
       status: "pending",
     },
@@ -1168,13 +1689,17 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
     }
   );
 
+  const populatedTeam = await Team.findById(team._id)
+    .populate("leader", "name email")
+    .populate("members", "name email")
+    .populate("contest", "title startDate deadline participationType");
+
   return res.status(200).json({
     success: true,
     message: "Joined team successfully",
-    team,
+    team: populatedTeam,
   });
 });
-
 
 // =====================================================
 // GET MY INVITATIONS
@@ -1187,7 +1712,18 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
     status: "pending",
     tokenExpiry: { $gt: new Date() },
   })
-    .populate("team", "teamName teamType contest leader members")
+    .populate({
+      path: "team",
+      select: "teamName teamType contest leader members",
+      populate: [
+        { path: "leader", select: "name email" },
+        { path: "members", select: "name email" },
+        {
+          path: "contest",
+          select: "title startDate deadline participationType maxTeamSize",
+        },
+      ],
+    })
     .populate("invitedUser", "name email")
     .populate("invitedBy", "name email")
     .sort({ createdAt: -1 });
@@ -1198,7 +1734,6 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
     invitations,
   });
 });
-
 
 // =====================================================
 // GET MY TEAMS
@@ -1219,7 +1754,6 @@ export const getMyTeams = asyncHandler(async (req, res) => {
   });
 });
 
-
 // =====================================================
 // GET TEAMS BY CONTEST
 // বাংলা: নির্দিষ্ট contest-এর সব team দেখাবে
@@ -1239,7 +1773,6 @@ export const getTeamsByContest = asyncHandler(async (req, res) => {
   });
 });
 
-
 // =====================================================
 // UPDATE TEAM
 // বাংলা: team leader team name update করতে পারবে
@@ -1248,8 +1781,6 @@ export const getTeamsByContest = asyncHandler(async (req, res) => {
 export const updateTeam = asyncHandler(async (req, res) => {
   const { teamName } = req.body;
 
-  // বাংলা: team find
-  // English: find team by id
   const team = await Team.findById(req.params.id);
 
   if (!team) {
@@ -1259,8 +1790,6 @@ export const updateTeam = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: only leader update করতে পারবে
-  // English: only leader can update the team
   if (team.leader.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -1268,10 +1797,24 @@ export const updateTeam = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: teamName দিলে update হবে
-  // English: update team name if provided
-  if (teamName) {
+  const contestDoc = await Contest.findById(team.contest);
+
+  if (contestDoc && getContestStatus(contestDoc) === "completed") {
+    return res.status(400).json({
+      success: false,
+      message: "Completed contest team cannot be updated",
+    });
+  }
+
+  if (teamName !== undefined) {
     const trimmedName = teamName.trim();
+
+    if (!trimmedName) {
+      return res.status(400).json({
+        success: false,
+        message: "Team name is required",
+      });
+    }
 
     const existingTeamName = await Team.findOne({
       _id: { $ne: team._id },
@@ -1291,17 +1834,23 @@ export const updateTeam = asyncHandler(async (req, res) => {
 
   await team.save();
 
+  const updatedTeam = await Team.findById(team._id)
+    .populate("leader", "name email")
+    .populate("members", "name email")
+    .populate("contest", "title startDate deadline participationType");
+
   return res.status(200).json({
     success: true,
     message: "Team updated successfully",
-    team,
+    team: updatedTeam,
   });
 });
 
-
-
-// team leader team delete korte parbe
-
+// =====================================================
+// DELETE TEAM
+// বাংলা: team leader team delete করতে পারবে
+// English: Team leader can delete the team
+// =====================================================
 export const deleteTeam = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id);
 
@@ -1312,8 +1861,6 @@ export const deleteTeam = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: only leader delete করতে পারবে
-  // English: only leader can delete the team
   if (team.leader.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -1321,11 +1868,17 @@ export const deleteTeam = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: related participation & invitation delete
-  // English: delete related participation and invitations
+  const submissionExists = await Submission.findOne({ team: team._id });
+
+  if (submissionExists) {
+    return res.status(400).json({
+      success: false,
+      message: "Submitted team cannot be deleted",
+    });
+  }
+
   await Participation.deleteMany({ team: team._id });
   await Invitation.deleteMany({ team: team._id });
-
   await team.deleteOne();
 
   return res.status(200).json({
