@@ -1362,4 +1362,5 @@ export const getCompletedContests = asyncHandler(async (req, res) => {
   });
 });
 
+
 console.log("contest controller is working");

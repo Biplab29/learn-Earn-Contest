@@ -169,7 +169,7 @@ import {
 
 
 
-teamRouter.post("/", verifyJWT, teamCreate);
+teamRouter.post("/create", verifyJWT, teamCreate);
 teamRouter.get("/my-teams", verifyJWT, getMyTeams);
 teamRouter.get("/my-invitations", verifyJWT, getMyInvitations);
 teamRouter.get("/invitations", verifyJWT, getMyInvitations);

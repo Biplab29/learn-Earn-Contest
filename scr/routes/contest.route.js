@@ -104,8 +104,8 @@ import { authorizeRoles, verifyJWT } from "../middleware/checkAuthUser.js";
 
 const contestRouter = express.Router();
 
-// বাংলা: image + project briefing upload field setup
-// English: setup upload fields for contest assets
+//  image + project briefing upload field setup
+
 const contestAssetFields = uploadContestAssets.fields([
   { name: "image", maxCount: 1 },
   ...contestBriefingUploadFields.map((name) => ({
@@ -115,11 +115,9 @@ const contestAssetFields = uploadContestAssets.fields([
 ]);
 
 
-// =====================================================
-// ADMIN ROUTES
-// বাংলা: শুধু admin contest create / update / delete করতে পারবে
-// English: Only admin can create, update, and delete contests
-// =====================================================
+
+//\ admin contest create / update / delete korte parbe
+
 
 // বাংলা: নতুন contest create
 // English: Create a contest
@@ -141,8 +139,7 @@ contestRouter.put(
   updateContest
 );
 
-// বাংলা: contest delete
-// English: Delete contest
+//Delete contest
 contestRouter.delete(
   "/delete/:id",
   verifyJWT,
@@ -151,11 +148,8 @@ contestRouter.delete(
 );
 
 
-// =====================================================
-// PUBLIC ROUTES
-// বাংলা: সবাই contest list / details দেখতে পারবে
-// English: Public routes for contest listing and details
-// =====================================================
+// sobai contest list / details dhekte pabe
+
 
 // বাংলা: সব contest দেখাবে
 // English: Get all contests
