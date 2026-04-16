@@ -229,31 +229,21 @@ import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
 const submissionRouter = express.Router();
 
 
-// =====================================================
 // SUBMIT ROUTE
-// বাংলা: team project submit করবে
-// English: submit a project
-// =====================================================
+// বাংলা: team project submit korbe
+
 submissionRouter.post("/submit", verifyJWT, submitProject);
 
 
-// =====================================================
-// MY ROUTES
+
 // বাংলা: logged-in user এর own submission related routes
-// English: routes for logged-in user's submissions
-// =====================================================
+
 submissionRouter.get("/my-submissions", verifyJWT, getMySubmissions);
 submissionRouter.get("/my-contest-count", verifyJWT, getMyJoinedContestCount);
 
 
-// =====================================================
-// GENERAL / REPORT ROUTES
-// বাংলা: participant count / contest submission view
-// English: general submission reporting routes
-// =====================================================
 
-// বাংলা: সব contest মিলিয়ে unique participant count
-// English: all contest participant count
+// all contest participant count
 submissionRouter.get(
   "/participant-count",
   verifyJWT,
@@ -261,8 +251,7 @@ submissionRouter.get(
   getAllContestParticipantCount
 );
 
-// বাংলা: নির্দিষ্ট contest-এর সব submissions
-// English: get submissions by contest
+// get submissions by contest
 submissionRouter.get(
   "/contest/:contestId",
   verifyJWT,
@@ -271,14 +260,10 @@ submissionRouter.get(
 );
 
 
-// =====================================================
-// ADMIN EVALUATION ROUTES
-// বাংলা: admin evaluation and winner management
-// English: admin-only evaluation and winner routes
-// =====================================================
+// admin evaluation and winner management
 
-// বাংলা: evaluate one submission
-// English: evaluate a submission
+// evaluate one submission
+
 submissionRouter.put(
   "/evaluate/:id",
   verifyJWT,
@@ -286,8 +271,8 @@ submissionRouter.put(
   evaluateSubmission
 );
 
-// বাংলা: declare winner
-// English: declare contest winner
+// declare winner
+
 submissionRouter.put(
   "/contest/:contestId/declare-winner",
   verifyJWT,
@@ -295,8 +280,8 @@ submissionRouter.put(
   declareWinner
 );
 
-// বাংলা: all submitted contests detailed report
-// English: detailed submitted contest report
+//  all submitted contests detailed report
+
 submissionRouter.get(
   "/submitted-contests",
   verifyJWT,
@@ -304,8 +289,8 @@ submissionRouter.get(
   getTotalSubmittedContests
 );
 
-// বাংলা: contest summary
-// English: contest summary report
+// contest summary
+
 submissionRouter.get(
   "/contest-summary",
   verifyJWT,
@@ -313,8 +298,8 @@ submissionRouter.get(
   getContestSubmissionSummary
 );
 
-// বাংলা: single contest report
-// English: single contest detailed report
+//single contest report
+
 submissionRouter.get(
   "/contest-report/:contestId",
   verifyJWT,
@@ -322,8 +307,8 @@ submissionRouter.get(
   getSingleContestSubmissionReport
 );
 
-// বাংলা: evaluated users in one contest
-// English: evaluated users by contest
+//evaluated users in one contest
+
 submissionRouter.get(
   "/contest/:contestId/evaluated-users",
   verifyJWT,
@@ -331,8 +316,8 @@ submissionRouter.get(
   getEvaluatedUsersByContest
 );
 
-// বাংলা: all winners
-// English: get all winners
+// all winners
+
 submissionRouter.get(
   "/winners",
   verifyJWT,
@@ -340,8 +325,8 @@ submissionRouter.get(
   getAllWinners
 );
 
-// বাংলা: update winner
-// English: update winner manually
+//update winner
+
 submissionRouter.put(
   "/contest/:contestId/winner",
   verifyJWT,
@@ -349,8 +334,7 @@ submissionRouter.put(
   updateWinner
 );
 
-// বাংলা: delete winner
-// English: remove winner
+//  delete winner
 submissionRouter.delete(
   "/contest/:contestId/winner",
   verifyJWT,
@@ -358,8 +342,8 @@ submissionRouter.delete(
   deleteWinner
 );
 
-// বাংলা: update winner details
-// English: update winner details
+//  update winner details
+
 submissionRouter.put(
   "/contest/:contestId/winner-details",
   verifyJWT,
@@ -367,8 +351,8 @@ submissionRouter.put(
   updateWinnerDetails
 );
 
-// বাংলা: update evaluation
-// English: update evaluation score/remarks
+// update evaluation
+
 submissionRouter.put(
   "/evaluation/:id",
   verifyJWT,
@@ -376,8 +360,8 @@ submissionRouter.put(
   updateEvaluation
 );
 
-// বাংলা: delete evaluation / reset pending
-// English: delete evaluation
+//delete evaluation / reset pending
+
 submissionRouter.delete(
   "/evaluation/:id",
   verifyJWT,
@@ -385,19 +369,13 @@ submissionRouter.delete(
   deleteEvaluation
 );
 
+// submission owner/team member update/delete korte pparbe
 
-// =====================================================
-// SUBMISSION MANAGEMENT ROUTES
-// বাংলা: submission owner/team member update/delete করতে পারবে
-// English: submission update/delete routes
-// =====================================================
 
-// বাংলা: update submission links
-// English: update submission
+
+//  update submission
 submissionRouter.patch("/:id", verifyJWT, updateSubmission);
-
-// বাংলা: delete submission
-// English: delete submission
+// delete submission
 submissionRouter.delete("/:id", verifyJWT, deleteSubmission);
 
 export default submissionRouter;

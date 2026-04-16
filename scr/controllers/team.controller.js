@@ -1299,11 +1299,9 @@ export const updateTeam = asyncHandler(async (req, res) => {
 });
 
 
-// =====================================================
-// DELETE TEAM
-// বাংলা: team leader team delete করতে পারবে
-// English: Team leader can delete the team
-// =====================================================
+
+// team leader team delete korte parbe
+
 export const deleteTeam = asyncHandler(async (req, res) => {
   const team = await Team.findById(req.params.id);
 
