@@ -1456,7 +1456,7 @@
 import crypto from "crypto";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Team } from "../models/team.model.js";
-import { Contest } from "../models/contest.model.js";
+import { Contest, getContestStatus } from "../models/contest.model.js";
 import { User } from "../models/user.model.js";
 import { Invitation } from "../models/invitation.model.js";
 import { Participation } from "../models/participation.model.js";
