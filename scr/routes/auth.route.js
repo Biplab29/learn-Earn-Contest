@@ -20,10 +20,7 @@ import { uploadProfilePicture } from "../middleware/uploadMiddleware.js";
 const userRouter = express.Router();
 
 
-// =====================================================
-// REGISTER
-// বাংলা: নতুন user register করবে
-// English: register a new user
+// register a new user
 // =====================================================
 userRouter.post(
   "/register",
@@ -33,69 +30,44 @@ userRouter.post(
   registerUser
 );
 
-
-// =====================================================
-// LOGIN
-// বাংলা: user login করবে
-// English: login user
+// login user
 // =====================================================
 userRouter.post("/login", loginUser);
 
 
-// =====================================================
-// GET SINGLE USER
-// বাংলা: single user details দেখাবে
-// English: get one user by id
+//get one user by id
 // =====================================================
 userRouter.get("/user/:id", verifyJWT, getSingleUser);
 
-
-// =====================================================
-// UPDATE USER
-// বাংলা: user নিজের profile update করতে পারবে, admin অন্য user update করতে পারবে
-// English: user can update self, admin can update any user
+// user can update self, admin can update any user
 // =====================================================
 userRouter.put("/user/update/:id", verifyJWT, updateUser);
 
 
-// =====================================================
-// GET ALL USERS
-// বাংলা: সব user list, শুধু admin দেখতে পারবে
-// English: get all users, admin only
+
+// get all users
 // =====================================================
 userRouter.get("/users", verifyJWT, getAllUsers);
 
 
-// =====================================================
-// LOGOUT
-// বাংলা: user logout করবে
-// English: logout user
+//logout user
 // =====================================================
 userRouter.post("/user/logout", verifyJWT, logoutUser);
 
 
-// =====================================================
-// FORGOT PASSWORD
-// বাংলা: forgot password mail পাঠাবে
-// English: send forgot password reset link
+// send forgot password reset link
 // =====================================================
 userRouter.post("/forgot-password", forgotPassword);
 
 
-// =====================================================
-// RESET PASSWORD
-// বাংলা: reset token দিয়ে নতুন password set করবে
-// English: reset password with token
+// reset password with token
 // =====================================================
 userRouter.post("/reset-password/:token", resetPassword);
-// চাইলে এটা remove করে শুধু PUT রাখতে পারো
+
 userRouter.put("/reset-password/:token", resetPassword);
 
 
-// =====================================================
-// DELETE USER
-// বাংলা: admin user delete করতে পারবে
-// English: admin can delete a user
+// admin can delete a user
 // =====================================================
 userRouter.delete(
   "/delete/user/:id",

@@ -10,18 +10,12 @@ import { Participation } from "../models/participation.model.js";
 import { Submission } from "../models/submission.model.js";
 
 
-// =====================================================
 // CREATE TEAM
-// user direct join করবে না
-// team create করলেই join হয়ে যাবে
-// solo হলে single-member team
-// team হলে leader + invite flow
-// both হলে user choose করবে solo বা team
-// =====================================================
+
 export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, contest, teamType } = req.body;
 
-  // required field check
+
   if (!teamName || !contest || !teamType) {
     return res.status(400).json({
       success: false,
@@ -29,7 +23,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // request এ শুধু solo বা team আসতে পারবে
   if (!["solo", "team"].includes(teamType)) {
     return res.status(400).json({
       success: false,
@@ -56,7 +49,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
   }
 
   // participationType validation
-  // contest solo হলে only solo
+
   if (contestDoc.participationType === "solo" && teamType !== "solo") {
     return res.status(400).json({
       success: false,
@@ -64,7 +57,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // contest team হলে only team
+
   if (contestDoc.participationType === "team" && teamType !== "team") {
     return res.status(400).json({
       success: false,
@@ -72,7 +65,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // contest both হলে solo/team দুইটাই allowed
+
   if (
     contestDoc.participationType !== "solo" &&
     contestDoc.participationType !== "team" &&
@@ -93,7 +86,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // same contest এ user আগে থেকেই কোনো team এর member কিনা
+  
   const alreadyJoined = await Team.findOne({
     contest,
     members: req.user._id,
@@ -106,7 +99,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // unique team name per contest
+
   const existingTeamName = await Team.findOne({
     contest,
     teamName: trimmedTeamName,
@@ -119,10 +112,9 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // creator নিজেই first member
   const members = [req.user._id];
 
-  // create team
+
   const team = await Team.create({
     teamName: trimmedTeamName,
     leader: req.user._id,
@@ -131,7 +123,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     teamType, // solo or team
   });
 
-  // participation create
+ 
   await Participation.create({
     contest,
     type: teamType,
@@ -156,11 +148,8 @@ export const teamCreate = asyncHandler(async (req, res) => {
   });
 });
 
-// =====================================================
 // INVITE MEMBER
-// teamType = team হলে leader invite পাঠাতে পারবে
-// teamType = solo হলে invite যাবে না
-// =====================================================
+
 export const inviteMember = asyncHandler(async (req, res) => {
   const { userId } = req.body;
 
@@ -180,7 +169,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // solo team এ invite allowed না
   if (team.teamType === "solo") {
     return res.status(400).json({
       success: false,
@@ -196,7 +184,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // নিজেকে invite করা যাবে না
   if (userId.toString() === req.user._id.toString()) {
     return res.status(400).json({
       success: false,
@@ -222,7 +209,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // already member কিনা
   const alreadyMember = team.members.some(
     (member) => member.toString() === user._id.toString()
   );
@@ -234,7 +220,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // same contest এ অন্য team এ joined কিনা
   const alreadyJoined = await Team.findOne({
     contest: team.contest._id,
     members: user._id,
@@ -247,7 +232,6 @@ export const inviteMember = asyncHandler(async (req, res) => {
     });
   }
 
-  // pending invite already আছে কিনা
   const existingInvite = await Invitation.findOne({
     team: team._id,
     invitedUser: user._id,
@@ -311,10 +295,8 @@ export const inviteMember = asyncHandler(async (req, res) => {
   });
 });
 
-// =====================================================
 // CONFIRM INVITATION
-// invited user token দিয়ে team join করবে
-// =====================================================
+
 export const confirmInvitation = asyncHandler(async (req, res) => {
   const token = req.body.token || req.params.token;
 

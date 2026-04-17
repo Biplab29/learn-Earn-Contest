@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 
 const submissionSchema = new mongoose.Schema(
   {
-    // কে submit button চাপলো (optional but useful)
+    
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
