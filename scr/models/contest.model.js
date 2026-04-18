@@ -40,7 +40,6 @@ const contestSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      enum: ["Web Dev", "AI/ML", "App Dev", "Design", "Data Science"],
     },
 
   

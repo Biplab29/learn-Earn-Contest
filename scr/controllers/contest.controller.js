@@ -17,6 +17,160 @@ import {
 // =====================================================
 // CREATE CONTEST
 // =====================================================
+// export const createContest = asyncHandler(async (req, res) => {
+//   const {
+//     title,
+//     category,
+//     description,
+//     startDate,
+//     deadline,
+//     participationType,
+//     maxTeamSize,
+//     rewards,
+//   } = req.body;
+
+//   const allowedCategories = [
+//     "Web Dev",
+//     "AI/ML",
+//     "App Dev",
+//     "Design",
+//     "Data Science",
+//   ];
+
+//   const imageFile = getUploadedFile(req, "image");
+//   const projectBriefingFiles = getProjectBriefingFiles(req);
+//   const projectBriefingFile = getProjectBriefingFile(req);
+//   const normalizedRewards = normalizeRewards(rewards);
+
+//   const normalizedTitle = title?.trim();
+//   const normalizedCategory = category?.trim();
+//   const normalizedDescription = description?.trim();
+//   const type = participationType?.trim();
+
+//   if (projectBriefingFiles.length > 1) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Upload only one project briefing PDF",
+//     });
+//   }
+
+//   if (
+//     !normalizedTitle ||
+//     !normalizedCategory ||
+//     !normalizedDescription ||
+//     !startDate ||
+//     !deadline ||
+//     !type ||
+//     !Array.isArray(normalizedRewards) ||
+//     normalizedRewards.length === 0
+//   ) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message:
+//         "Title, category, description, startDate, deadline, participationType, and rewards are required",
+//     });
+//   }
+
+//   if (!allowedCategories.includes(normalizedCategory)) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Invalid category value",
+//     });
+//   }
+
+//   if (!req.user || !req.user._id) {
+//     await cleanupContestUploads(req);
+//     return res.status(401).json({
+//       message: "Unauthorized user",
+//     });
+//   }
+
+//   if (!["solo", "team", "both"].includes(type)) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "participationType must be 'solo', 'team', or 'both'",
+//     });
+//   }
+
+//   if (type === "solo" && maxTeamSize && Number(maxTeamSize) !== 1) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Solo contests must have maxTeamSize of 1",
+//     });
+//   }
+
+//   if (type !== "solo" && (!maxTeamSize || Number(maxTeamSize) < 2)) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Team or both-mode contests require a maxTeamSize of at least 2",
+//     });
+//   }
+
+//   const parsedStartDate = new Date(startDate);
+//   const parsedDeadline = new Date(deadline);
+
+//   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Invalid startDate or deadline format",
+//     });
+//   }
+
+//   if (parsedStartDate >= parsedDeadline) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Deadline must be greater than startDate",
+//     });
+//   }
+
+//   const existingContest = await Contest.findOne({
+//     title: normalizedTitle,
+//   }).select("_id");
+
+//   if (existingContest) {
+//     await cleanupContestUploads(req);
+//     return res.status(400).json({
+//       message: "Contest with this title already exists",
+//     });
+//   }
+
+//   let contest;
+
+//   try {
+//     contest = await Contest.create({
+//       title: normalizedTitle,
+//       category: normalizedCategory,
+//       description: normalizedDescription,
+//       startDate: parsedStartDate,
+//       deadline: parsedDeadline,
+//       rewards: normalizedRewards,
+//       image: imageFile?.path || "",
+//       imagePublicId: imageFile?.filename || "",
+//       projectBriefing: projectBriefingFile?.path || "",
+//       projectBriefingPublicId: projectBriefingFile?.filename || "",
+//       projectBriefingOriginalName: projectBriefingFile?.originalname || "",
+//       participationType: type,
+//       maxTeamSize: type === "solo" ? 1 : Number(maxTeamSize),
+//       createdBy: req.user._id,
+//     });
+//   } catch (error) {
+//     await cleanupContestUploads(req);
+//     throw error;
+//   }
+
+//   const populatedContest = await Contest.findById(contest._id).populate(
+//     "createdBy",
+//     "name email"
+//   );
+
+//   return res.status(201).json({
+//     success: true,
+//     message: "Contest created successfully",
+//     contest: serializeContest(populatedContest),
+//   });
+// });
+
+
 export const createContest = asyncHandler(async (req, res) => {
   const {
     title,
@@ -28,14 +182,6 @@ export const createContest = asyncHandler(async (req, res) => {
     maxTeamSize,
     rewards,
   } = req.body;
-
-  const allowedCategories = [
-    "Web Dev",
-    "AI/ML",
-    "App Dev",
-    "Design",
-    "Data Science",
-  ];
 
   const imageFile = getUploadedFile(req, "image");
   const projectBriefingFiles = getProjectBriefingFiles(req);
@@ -68,13 +214,6 @@ export const createContest = asyncHandler(async (req, res) => {
     return res.status(400).json({
       message:
         "Title, category, description, startDate, deadline, participationType, and rewards are required",
-    });
-  }
-
-  if (!allowedCategories.includes(normalizedCategory)) {
-    await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Invalid category value",
     });
   }
 

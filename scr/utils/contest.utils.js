@@ -46,19 +46,17 @@ export const getProjectBriefingFile = (req) => {
   return files[0] || null;
 };
 
-// =====================================================
 // CHECK VALID DATE
-// বাংলা: date valid কিনা check করবে
-// English: validate JavaScript Date object
+//  date valid kina check korbe
+// validate JavaScript Date object
 // =====================================================
 export const isValidDate = (value) => {
   return value instanceof Date && !Number.isNaN(value.getTime());
 };
 
-// =====================================================
 // NORMALIZE REWARDS
-// বাংলা: rewards string/array কে clean array-তে convert করবে
-// English: normalize rewards input into a clean array
+// rewards string/array ke clean array-তে convert করবে
+// normalize rewards input into a clean array
 // =====================================================
 export const normalizeRewards = (rewards) => {
   if (Array.isArray(rewards)) {
@@ -77,10 +75,9 @@ export const normalizeRewards = (rewards) => {
   return [];
 };
 
-// =====================================================
 // SERIALIZE ONE CONTEST
-// বাংলা: contest response clean format-এ return করবে
-// English: serialize single contest response
+// contest response clean forma a return korbe
+// serialize single contest response
 // =====================================================
 export const serializeContest = (contest) => {
   if (!contest) return null;
@@ -109,29 +106,27 @@ export const serializeContest = (contest) => {
   };
 };
 
-// =====================================================
 // SERIALIZE MULTIPLE CONTESTS
-// বাংলা: অনেক contest serialize করবে
-// English: serialize contest list
+//  onk contest serialize korbe
+//serialize contest list
 // =====================================================
 export const serializeContests = (contests = []) => {
   return contests.map((contest) => serializeContest(contest));
 };
 
-// =====================================================
+
 // GET PROJECT BRIEFING DOWNLOAD URL
-// বাংলা: project briefing download link return করবে
-// English: get project briefing download URL
+// project briefing download link return korbe
+//  get project briefing download URL
 // =====================================================
 export const getProjectBriefingDownloadUrl = (contest) => {
   if (!contest) return "";
   return contest.projectBriefing || "";
 };
 
-// =====================================================
 // CLEANUP CONTEST UPLOADS
-// বাংলা: validation fail হলে uploaded image/pdf cloudinary থেকে delete করবে
-// English: cleanup uploaded contest files from cloudinary
+//validation fail hole uploaded image/pdf cloudinary theka delete korbe
+// cleanup uploaded contest files from cloudinary
 // =====================================================
 export const cleanupContestUploads = async (req) => {
   const imageFile = getUploadedFile(req, "image");
