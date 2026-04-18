@@ -141,13 +141,13 @@ export const submitProject = asyncHandler(async (req, res) => {
     });
   }
 
-  // teamName দিয়ে team খুঁজবে
+
   const team = await Team.findOne({
     contest: contestId,
     teamName: teamName.trim(),
   });
 
-  // team না থাকলে Team not found
+
   if (!team) {
     return res.status(404).json({
       success: false,
@@ -155,7 +155,7 @@ export const submitProject = asyncHandler(async (req, res) => {
     });
   }
 
-  // logged-in user ওই team এর member কিনা check
+
   const isMember = team.members.some(
     (memberId) => memberId.toString() === userId.toString()
   );
