@@ -120,7 +120,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
     leader: req.user._id,
     members,
     contest,
-    teamType, // solo or team
+    teamType,
   });
 
  
