@@ -98,7 +98,7 @@ const formatSubmissionDetails = (item) => ({
 
 // =====================================================
 // SUBMIT PROJECT
-// team project submit করবে
+// team project submit korbe
 // =====================================================
 export const submitProject = asyncHandler(async (req, res) => {
   const { contestId, teamName, githubLink, liveUrl } = req.body;
@@ -245,8 +245,7 @@ export const getSubmissionsByContest = asyncHandler(async (req, res) => {
   });
 });
 
-// =====================================================
-// logged-in user যেসব team-এর member, সেই team submissions দেখাবে
+// logged-in user je team er member, sei team submissions dhekabe
 // =====================================================
 export const getMySubmissions = asyncHandler(async (req, res) => {
   const teams = await Team.find({
@@ -335,10 +334,9 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
   });
 });
 
-// =====================================================
-// UNIQUE PARTICIPANT COUNT
-// submission দেওয়া unique user count বের করবে
-// =====================================================
+
+//  PARTICIPANT COUNT
+
 export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
   const submissions = await Submission.find({})
     .populate("team", "members")
@@ -604,10 +602,8 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
   });
 });
 
-// =====================================================
 // GET EVALUATED USERS BY CONTEST
-// evaluated submission-এর unique user/member list
-// =====================================================
+
 export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -660,8 +656,7 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
 
 // =====================================================
 // DECLARE WINNER
-// deadline-এর পরে evaluated submission থেকে winner declare করবে
-// =====================================================
+
 export const declareWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -795,8 +790,7 @@ export const getAllWinners = asyncHandler(async (req, res) => {
 
 // =====================================================
 // UPDATE WINNER
-// contest winner submission manually change করা যাবে
-// =====================================================
+
 export const updateWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
   const winnerSubmissionId =
@@ -851,8 +845,7 @@ export const updateWinner = asyncHandler(async (req, res) => {
 
 // =====================================================
 // DELETE WINNER
-// winner remove করবে
-// =====================================================
+
 export const deleteWinner = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -894,8 +887,7 @@ export const deleteWinner = asyncHandler(async (req, res) => {
 
 // =====================================================
 // UPDATE WINNER DETAILS
-// winner submission / team info update করবে
-// =====================================================
+
 export const updateWinnerDetails = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
   const { teamName, githubLink, liveUrl, totalScore, remarks } = req.body;
@@ -1106,8 +1098,7 @@ export const updateEvaluation = asyncHandler(async (req, res) => {
 
 // =====================================================
 // DELETE EVALUATION
-// evaluation reset/delete করবে
-// =====================================================
+
 export const deleteEvaluation = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -1159,8 +1150,7 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
 
 // =====================================================
 // UPDATE SUBMISSION
-// submission links update করবে
-// =====================================================
+
 export const updateSubmission = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { githubLink, liveUrl } = req.body;
@@ -1261,8 +1251,7 @@ export const updateSubmission = asyncHandler(async (req, res) => {
 
 // =====================================================
 // DELETE SUBMISSION
-// submission delete করবে
-// =====================================================
+
 export const deleteSubmission = asyncHandler(async (req, res) => {
   const { id } = req.params;
 

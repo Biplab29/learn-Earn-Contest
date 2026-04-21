@@ -1,9 +1,6 @@
 import removeCloudinaryFile from "./removeCloudinaryFile.js";
 
-// =====================================================
-// GET ONE UPLOADED FILE BY FIELD NAME
-// বাংলা: req.file বা req.files থেকে নির্দিষ্ট field-এর file বের করবে
-// English: get one uploaded file by field name
+// get one uploaded file by field name
 // =====================================================
 export const getUploadedFile = (req, fieldName) => {
   if (req.file && req.file.fieldname === fieldName) {
@@ -17,10 +14,7 @@ export const getUploadedFile = (req, fieldName) => {
   return null;
 };
 
-// =====================================================
-// GET ALL PROJECT BRIEFING FILES
-// বাংলা: project briefing related সব file collect করবে
-// English: get all uploaded project briefing files
+// get all uploaded project briefing files
 // =====================================================
 export const getProjectBriefingFiles = (req) => {
   const files = [];
@@ -36,10 +30,7 @@ export const getProjectBriefingFiles = (req) => {
   return files;
 };
 
-// =====================================================
-// GET FIRST PROJECT BRIEFING FILE
-// বাংলা: প্রথম project briefing file return করবে
-// English: get first project briefing file
+// get first project briefing file
 // =====================================================
 export const getProjectBriefingFile = (req) => {
   const files = getProjectBriefingFiles(req);
@@ -54,8 +45,6 @@ export const isValidDate = (value) => {
   return value instanceof Date && !Number.isNaN(value.getTime());
 };
 
-// NORMALIZE REWARDS
-// rewards string/array ke clean array-তে convert করবে
 // normalize rewards input into a clean array
 // =====================================================
 export const normalizeRewards = (rewards) => {

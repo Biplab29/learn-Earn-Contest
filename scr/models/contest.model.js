@@ -18,23 +18,14 @@ export const getContestStatus = ({ startDate, deadline, isClosed = false }) => {
   return "upcoming";
 };
 
-
-// =====================================================
-// CONTEST SCHEMA
-// বাংলা: Contest model create করা হচ্ছে
-// English: Contest schema definition
-// =====================================================
 const contestSchema = new mongoose.Schema(
   {
-    // বাংলা: contest title
-    // English: contest title
+
     title: {
       type: String,
       required: true,
       trim: true,
     },
-
-    //contest category
     
     category: {
       type: String,
@@ -131,10 +122,8 @@ const contestSchema = new mongoose.Schema(
 );
 
 
-// =====================================================
-// PRE VALIDATE HOOK
-// বাংলা: validate হওয়ার আগে কিছু rule apply হবে
-// English: apply business rules before validation
+// validate howaar age kichu rule apply hobe
+// apply rules before validation
 // =====================================================
 contestSchema.pre("validate", function () {
   if (this.participationType === "solo") {
@@ -161,7 +150,7 @@ contestSchema.path("maxTeamSize").validate(
 
 
 
-// INSTANCE METHOD: SYNC STATUS
+// SYNC STATUS
 
 contestSchema.methods.syncStatus = function () {
   this.status = getContestStatus(this);

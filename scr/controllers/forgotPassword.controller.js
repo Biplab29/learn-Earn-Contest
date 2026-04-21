@@ -97,8 +97,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     "http://localhost:5173"
   ).replace(/\/+$/, "");
 
-  // বাংলা: valid email check
-  // English: validate email input
+  // validate email input
   if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
     return res.status(400).json({
       message: "Valid email is required",
@@ -107,8 +106,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email: normalizedEmail });
 
-  // বাংলা: security-এর জন্য generic response
-  // English: return generic response to avoid email enumeration
+
   if (!user) {
     return res.status(200).json({
       message: "If an account with that email exists, a reset link has been sent",
@@ -119,8 +117,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   // English: generate raw reset token
   const resetToken = crypto.randomBytes(32).toString("hex");
 
-  // বাংলা: DB-তে hashed token save হবে
-  // English: store hashed token in DB
+  // store hashed token in DB
   const hashedToken = crypto
     .createHash("sha256")
     .update(resetToken)

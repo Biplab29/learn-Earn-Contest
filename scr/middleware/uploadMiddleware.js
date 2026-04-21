@@ -101,11 +101,9 @@ import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinary.js";
 
-
-// =====================================================
 // ALLOWED FORMATS
-// বাংলা: allowed image and pdf file types
-// English: allowed mime types and formats
+// allowed image and pdf file types
+// allowed mime types and formats
 // =====================================================
 const imageFormats = ["jpg", "jpeg", "png", "webp"];
 
@@ -121,19 +119,11 @@ const pdfMimeTypes = ["application/pdf"];
 const contestBriefingFieldNames = ["projectBriefing", "projectBriefingPdf"];
 
 
-// =====================================================
-// CHECK CONTEST BRIEFING FIELD
-// বাংলা: field name contest briefing কিনা check করবে
-// English: check whether field is a contest briefing field
-// =====================================================
+
 const isContestBriefingField = (fieldName) =>
   contestBriefingFieldNames.includes(fieldName);
 
-
-// =====================================================
-// IMAGE FILE FILTER
-// বাংলা: image file valid কিনা check
-// English: validate uploaded image file
+//validate uploaded image file
 // =====================================================
 const imageFileFilter = (req, file, cb) => {
   if (imageMimeTypes.includes(file.mimetype)) {
@@ -143,11 +133,7 @@ const imageFileFilter = (req, file, cb) => {
   return cb(new Error("Only JPG, JPEG, PNG, and WEBP images are allowed"));
 };
 
-
-// =====================================================
-// CREATE CLOUDINARY IMAGE UPLOAD
-// বাংলা: সাধারণ image upload middleware তৈরি করবে
-// English: create multer middleware for image upload
+//create multer middleware for image upload
 // =====================================================
 const createCloudinaryImageUpload = (folder) => {
   const storage = new CloudinaryStorage({
@@ -168,11 +154,7 @@ const createCloudinaryImageUpload = (folder) => {
   });
 };
 
-
-// =====================================================
-// CONTEST ASSET FILE FILTER
-// বাংলা: contest image + pdf briefing validate করবে
-// English: validate contest image and project briefing pdf
+// validate contest image and project briefing pdf
 // =====================================================
 const contestAssetFileFilter = (req, file, cb) => {
   // বাংলা: contest image হলে image mime type check
@@ -181,8 +163,6 @@ const contestAssetFileFilter = (req, file, cb) => {
     return cb(null, true);
   }
 
-  // বাংলা: contest briefing field হলে pdf allow
-  // English: allow PDF for contest briefing fields
   if (
     isContestBriefingField(file.fieldname) &&
     pdfMimeTypes.includes(file.mimetype)
@@ -190,24 +170,18 @@ const contestAssetFileFilter = (req, file, cb) => {
     return cb(null, true);
   }
 
-  // বাংলা: briefing field-এ non-pdf reject
-  // English: reject non-pdf briefing file
   if (isContestBriefingField(file.fieldname)) {
     return cb(new Error("Only PDF files are allowed for the project briefing"));
   }
 
-  // বাংলা: অন্য unsupported file reject
-  // English: reject unsupported contest asset
+  
   return cb(
     new Error("Only contest images and PDF project briefings are allowed")
   );
 };
 
 
-// =====================================================
-// CONTEST ASSET STORAGE
-// বাংলা: contest image আর pdf আলাদা cloudinary folder-এ save হবে
-// English: store contest image and briefing in separate cloudinary folders
+// store contest image and briefing in separate cloudinary folders
 // =====================================================
 const contestAssetStorage = new CloudinaryStorage({
   cloudinary,
@@ -230,10 +204,7 @@ const contestAssetStorage = new CloudinaryStorage({
 });
 
 
-// =====================================================
-// EXPORT MIDDLEWARES
-// বাংলা: বিভিন্ন upload middleware export করা হচ্ছে
-// English: export reusable upload middlewares
+//export reusable upload middlewares
 // =====================================================
 export const uploadContestAssets = multer({
   storage: contestAssetStorage,
@@ -245,12 +216,10 @@ export const uploadContestAssets = multer({
 
 export const contestBriefingUploadFields = contestBriefingFieldNames;
 
-// বাংলা: সাধারণ contest image upload
-// English: single image upload for contest
+
 export const upload = createCloudinaryImageUpload("contests/images");
 
-// বাংলা: user profile picture upload
-// English: upload profile picture
+
 export const uploadProfilePicture = createCloudinaryImageUpload(
   "users/profile-pictures"
 );

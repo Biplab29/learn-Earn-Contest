@@ -382,7 +382,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   invitation.status = "accepted";
   await invitation.save();
 
-  // same contest এর অন্য pending invitation auto reject
+  // same contest er jonno pending invitation auto reject
   const sameContestTeamIds = await Team.find({
     contest: team.contest._id,
   }).distinct("_id");

@@ -17,12 +17,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-
-// =====================================================
 // VALIDATE ENV VARIABLES
-// বাংলা: cloudinary env variables আছে কিনা check
-// English: ensure required env variables exist
-// =====================================================
+
 if (
   !process.env.CLOUD_NAME ||
   !process.env.CLOUD_API_KEY ||
@@ -34,9 +30,10 @@ if (
 
 // =====================================================
 // CONFIGURE CLOUDINARY
-// বাংলা: cloudinary config setup
-// English: initialize cloudinary configuration
-// =====================================================
+// cloudinary config setup
+// initialize cloudinary configuration
+
+
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.CLOUD_API_KEY,

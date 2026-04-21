@@ -5,10 +5,9 @@ import { User } from "../models/user.model.js";
 import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
 
 
-// =====================================================
+
 // REGISTER USER
-// বাংলা: নতুন user register করবে
-// English: register a new user
+// register a new user
 // =====================================================
 export const registerUser = asyncHandler(async (req, res) => {
   let createdUser = null;
@@ -24,8 +23,7 @@ export const registerUser = asyncHandler(async (req, res) => {
     const profilePicture = req.file?.path || "";
     const profilePicturePublicId = req.file?.filename || "";
 
-    // বাংলা: required field validation
-    // English: validate required fields
+    // validate required fields
     if (
       !normalizedName ||
       !normalizedEmail ||
@@ -42,8 +40,8 @@ export const registerUser = asyncHandler(async (req, res) => {
       });
     }
 
-    // বাংলা: email আগে থেকেই আছে কিনা check
-    // English: check duplicate email
+    
+    // check duplicate email
     const userExist = await User.findOne({ email: normalizedEmail });
 
     if (userExist) {
@@ -56,8 +54,7 @@ export const registerUser = asyncHandler(async (req, res) => {
       });
     }
 
-    // বাংলা: নতুন user create
-    // English: create new user
+    // create new user
     createdUser = await User.create({
       name: normalizedName,
       email: normalizedEmail,
@@ -93,10 +90,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 });
 
 
-// =====================================================
-// UPDATE USER
-// বাংলা: user profile update করবে
-// English: update user profile
+// update user profile
 // =====================================================
 export const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -107,24 +101,23 @@ export const updateUser = asyncHandler(async (req, res) => {
   const normalizedPhoneNumber = phoneNumber?.trim();
   const normalizedGender = gender?.trim();
 
-  // বাংলা: required field validation
-  // English: validate required fields
+  // validate required fields
   if (!normalizedName || !normalizedEmail || !normalizedPhoneNumber || !normalizedGender) {
     return res.status(400).json({
       message: "Please provide all fields",
     });
   }
 
-  // বাংলা: শুধু নিজের profile update করতে পারবে, admin হলে any user update করতে পারবে
-  // English: allow self update or admin update
+  // only nijer profile update korte parbe, admin hole any user update korte parbe
+  // allow self update or admin update
   if (req.user.role !== "admin" && req.user._id.toString() !== id) {
     return res.status(403).json({
       message: "You are not allowed to update this user",
     });
   }
 
-  // বাংলা: অন্য user already same email use করছে কিনা check
-  // English: prevent duplicate email
+  // onno user already same email use korche ki na check
+  //  prevent duplicate email
   const existingUser = await User.findOne({
     email: normalizedEmail,
     _id: { $ne: id },
@@ -159,11 +152,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   });
 });
 
-
-// =====================================================
-// LOGIN USER
-// বাংলা: email + password দিয়ে login করবে
-// English: login user with email and password
+//login user with email and password
 // =====================================================
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -215,10 +204,7 @@ export const loginUser = asyncHandler(async (req, res) => {
 });
 
 
-// =====================================================
-// LOGOUT USER
-// বাংলা: user logout করবে
-// English: logout user and clear cookies
+// logout user and clear cookies
 // =====================================================
 export const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
@@ -242,11 +228,9 @@ export const logoutUser = asyncHandler(async (req, res) => {
 });
 
 
+// get single user by id
 // =====================================================
-// GET SINGLE USER
-// বাংলা: এক user-এর details দেখাবে
-// English: get single user by id
-// =====================================================
+
 export const getSingleUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -264,11 +248,7 @@ export const getSingleUser = asyncHandler(async (req, res) => {
   });
 });
 
-
-// =====================================================
-// GET ALL USERS
-// বাংলা: সব user list দেখাবে
-// English: get all users
+// get all users
 // =====================================================
 export const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().select("-profilePicturePublicId");
@@ -280,11 +260,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   });
 });
 
-
-// =====================================================
-// DELETE USER
-// বাংলা: admin user delete করতে পারবে
-// English: admin can delete user
+// admin can delete user
 // =====================================================
 export const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -297,16 +273,15 @@ export const deleteUser = asyncHandler(async (req, res) => {
     });
   }
 
-  // বাংলা: admin নিজের account delete করতে পারবে না
-  // English: prevent admin self delete
+  // admin nijer account delete korte paarbe na
+  //  prevent admin self delete
   if (req.user._id.toString() === id) {
     return res.status(400).json({
       message: "You cannot delete your own admin account",
     });
   }
-
-  // বাংলা: cloudinary image remove
-  // English: remove profile picture from cloudinary
+  
+  // remove profile picture from cloudinary
   if (user.profilePicturePublicId) {
     await removeCloudinaryFile(user.profilePicturePublicId);
   }

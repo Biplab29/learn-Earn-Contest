@@ -34,11 +34,7 @@ const contestAssetFields = uploadContestAssets.fields([
 
 
 
-//\ admin contest create / update / delete korte parbe
-
-
-// বাংলা: নতুন contest create
-// English: Create a contest
+// Create a contest
 contestRouter.post(
   "/create",
   verifyJWT,
@@ -47,8 +43,7 @@ contestRouter.post(
   createContest
 );
 
-// বাংলা: existing contest update
-// English: Update contest
+// Update contest
 contestRouter.put(
   "/update/:id",
   verifyJWT,
@@ -66,31 +61,23 @@ contestRouter.delete(
 );
 
 
-// sobai contest list / details dhekte pabe
 
-
-// বাংলা: সব contest দেখাবে
-// English: Get all contests
+// Get all contests
 contestRouter.get("/", getAllContests);
 
-// বাংলা: active contest list
-// English: Get active contests
+// Get active contests
 contestRouter.get("/active", getActiveContests);
 
-// বাংলা: upcoming contest list
-// English: Get upcoming contests
+// Get upcoming contests
 contestRouter.get("/upcoming", getUpcomingContests);
 
-// বাংলা: completed contest list
-// English: Get completed contests
+// Get completed contests
 contestRouter.get("/completed", getCompletedContests);
 
-// বাংলা: project briefing file download
-// English: Download contest project briefing
+//Download contest project briefing
 contestRouter.get("/:id/project-briefing/download", downloadProjectBriefing);
 
-// বাংলা: single contest details
-// English: Get single contest by id
+// Get single contest by id
 contestRouter.get("/:id", getContestById);
 
 export default contestRouter;
