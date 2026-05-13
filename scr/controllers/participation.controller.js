@@ -79,7 +79,7 @@ export const getContestParticipants = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: "Contest participants retrieved",
+    message: "Contest participants ",
     count: participants.length,
     participants,
   });
@@ -114,8 +114,7 @@ export const getStudentContestHistory = asyncHandler(async (req, res) => {
     return {
       team,
       participationStatus: participation?.status || "pending",
-      
-      // ✅ CHANGED HERE: participationType এখন সরাসরি team.teamType থেকে আসবে 
+    
       participationType: team.teamType, 
       
       joinedAt: participation?.createdAt || team.createdAt,

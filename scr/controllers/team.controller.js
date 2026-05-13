@@ -15,7 +15,6 @@ import { Submission } from "../models/submission.model.js";
 export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, contest, teamType } = req.body;
 
-
   if (!teamName || !contest || !teamType) {
     return res.status(400).json({
       success: false,
