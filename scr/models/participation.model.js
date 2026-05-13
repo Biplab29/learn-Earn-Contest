@@ -26,9 +26,6 @@ const participationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ekta team ekta contest a ekbar eii join korte parbe
-
-participationSchema.index({ contest: 1, team: 1 }, { unique: true });
 
 export const Participation = mongoose.model("Participation", participationSchema);
 
