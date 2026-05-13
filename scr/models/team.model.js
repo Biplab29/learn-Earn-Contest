@@ -88,7 +88,7 @@ teamSchema.pre("validate", function () {
 // ==========================
 // MEMBERS VALIDATION
 // ==========================
-//  Check members array rules
+// 👉 Check members array rules
 teamSchema.path("members").validate(
   function (members) {
     // 👉 must be array and not empty
@@ -124,7 +124,7 @@ teamSchema.path("leader").validate(
 
 
 //  check Same contest e same teamName duplicate hobe na
-teamSchema.index({ contest: 1, teamName: 1 });
+teamSchema.index({ contest: 1, teamName: 1 }, { unique: true });
 
 
 export const Team = mongoose.model("Team", teamSchema);
