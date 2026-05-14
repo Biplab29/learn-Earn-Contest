@@ -187,13 +187,23 @@ export const submitProject = asyncHandler(async (req, res) => {
     liveUrl: liveUrl?.trim() || "",
   });
 
-  await Participation.updateOne(
+  await Participation.findOneAndUpdate(
     {
       contest: contestId,
       team: team._id,
     },
     {
       $set: { status: "submitted" },
+      $setOnInsert: {
+        contest: contestId,
+        team: team._id,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      runValidators: true,
+      setDefaultsOnInsert: true,
     }
   );
 
@@ -1302,13 +1312,23 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
   const contestId = submission.contest?._id || submission.contest;
   const teamId = submission.team?._id || submission.team;
 
-  await Participation.updateOne(
+  await Participation.findOneAndUpdate(
     {
       contest: contestId,
       team: teamId,
     },
     {
       $set: { status: "pending" },
+      $setOnInsert: {
+        contest: contestId,
+        team: teamId,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      runValidators: true,
+      setDefaultsOnInsert: true,
     }
   );
 

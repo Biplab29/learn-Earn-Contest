@@ -22,10 +22,26 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!mongoose.Types.ObjectId.isValid(contest)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid contest id",
+    });
+  }
+
   if (!["solo", "team"].includes(teamType)) {
     return res.status(400).json({
       success: false,
       message: "teamType must be solo or team",
+    });
+  }
+
+  const trimmedTeamName = teamName.trim();
+
+  if (!trimmedTeamName) {
+    return res.status(400).json({
+      success: false,
+      message: "Team name required",
     });
   }
 
@@ -47,7 +63,12 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  // participationType validation
+  if (!["solo", "team", "both"].includes(contestDoc.participationType)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid contest participation type",
+    });
+  }
 
   if (contestDoc.participationType === "solo" && teamType !== "solo") {
     return res.status(400).json({
@@ -56,7 +77,6 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-
   if (contestDoc.participationType === "team" && teamType !== "team") {
     return res.status(400).json({
       success: false,
@@ -64,28 +84,20 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-
-  if (
-    contestDoc.participationType !== "solo" &&
-    contestDoc.participationType !== "team" &&
-    contestDoc.participationType !== "both"
-  ) {
+  if (teamType === "solo" && contestDoc.maxTeamSize && contestDoc.maxTeamSize < 1) {
     return res.status(400).json({
       success: false,
-      message: "Invalid contest participation type",
+      message: "Invalid team size for this contest",
     });
   }
 
-  const trimmedTeamName = teamName.trim();
-
-  if (!trimmedTeamName) {
+  if (teamType === "team" && contestDoc.maxTeamSize && contestDoc.maxTeamSize < 2) {
     return res.status(400).json({
       success: false,
-      message: "Team name required",
+      message: "Team contest must allow at least 2 members",
     });
   }
 
-  
   const alreadyJoined = await Team.findOne({
     contest,
     members: req.user._id,
@@ -98,10 +110,9 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-
   const existingTeamName = await Team.findOne({
     contest,
-    teamName: trimmedTeamName,
+    teamName: { $regex: `^${trimmedTeamName}$`, $options: "i" },
   });
 
   if (existingTeamName) {
@@ -111,31 +122,55 @@ export const teamCreate = asyncHandler(async (req, res) => {
     });
   }
 
-  const members = [req.user._id];
+  let team;
 
+  try {
+    team = await Team.create({
+      teamName: trimmedTeamName,
+      leader: req.user._id,
+      members: [req.user._id],
+      contest,
+      teamType,
+    });
 
-  const team = await Team.create({
-    teamName: trimmedTeamName,
-    leader: req.user._id,
-    members,
-    contest,
-    teamType,
-  });
+    await Participation.findOneAndUpdate(
+      {
+        contest,
+        team: team._id,
+      },
+      {
+        $setOnInsert: {
+          contest,
+          team: team._id,
+          status: "pending",
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+  } catch (error) {
+    if (team?._id) {
+      await Team.findByIdAndDelete(team._id);
+    }
 
- 
-  await Participation.create({
-    contest,
-    type: teamType,
-    team: team._id,
-  });
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "You already joined this contest or team name already exists",
+      });
+    }
+
+    throw error;
+  }
 
   const populatedTeam = await Team.findById(team._id)
     .populate("leader", "name email")
     .populate("members", "name email")
-    .populate(
-      "contest",
-      "title participationType maxTeamSize startDate deadline"
-    );
+    .populate("contest", "title participationType maxTeamSize startDate deadline");
 
   return res.status(201).json({
     success: true,

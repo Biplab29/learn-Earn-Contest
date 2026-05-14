@@ -158,7 +158,6 @@ contestSchema.methods.syncStatus = function () {
 };
 
 
-
 // SYNC MULTIPLE CONTEST STATUSES
 
 contestSchema.statics.syncStatuses = async function (filter = {}) {

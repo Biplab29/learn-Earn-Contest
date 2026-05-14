@@ -1,6 +1,4 @@
 
-
-
 import mongoose from "mongoose";
 
 const participationSchema = new mongoose.Schema(
@@ -26,6 +24,17 @@ const participationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// One participation document should represent one team inside one contest.
+// The partial filter keeps index sync safe even if old legacy rows do not have a team field.
+participationSchema.index(
+  { contest: 1, team: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      team: { $exists: true },
+    },
+  }
+);
 
 export const Participation = mongoose.model("Participation", participationSchema);
 

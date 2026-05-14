@@ -1,7 +1,4 @@
 
-
-
-
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Team } from "../models/team.model.js";
 import { Participation } from "../models/participation.model.js";
