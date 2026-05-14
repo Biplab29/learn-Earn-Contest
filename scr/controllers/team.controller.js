@@ -12,6 +12,9 @@ import { Submission } from "../models/submission.model.js";
 
 // CREATE TEAM
 
+import mongoose from "mongoose";
+
+
 export const teamCreate = asyncHandler(async (req, res) => {
   const { teamName, contest, teamType } = req.body;
 
