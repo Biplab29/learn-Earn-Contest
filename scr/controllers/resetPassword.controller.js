@@ -1,73 +1,15 @@
 
-// import crypto from "crypto";
-// import asyncHandler from "../middleware/asyncHandler.js";
-// import { User } from "../models/user.model.js";
-
-// export const resetPassword = asyncHandler(async (req, res) => {
-//   const { token } = req.params;
-//   const password = req.body.password || req.body.newPassword;
-//   const confirmPassword =
-//     req.body.confirmPassword || req.body.confirmNewPassword;
-
-//   if (!token) {
-//     return res.status(400).json({
-//       message: "Reset token is required",
-//     });
-//   }
-
-//   if (!password) {
-//     return res.status(400).json({
-//       message: "Password is required",
-//     });
-//   }
-
-//   if (confirmPassword && password !== confirmPassword) {
-//     return res.status(400).json({
-//       message: "Passwords do not match",
-//     });
-//   }
-
-//   const hashedToken = crypto
-//     .createHash("sha256")
-//     .update(token)
-//     .digest("hex");
-
-//   const user = await User.findOne({
-//     resetPasswordToken: hashedToken,
-//     resetPasswordExpire: { $gt: Date.now() },
-//   });
-
-//   if (!user) {
-//     return res.status(400).json({
-//       message: "Token invalid or expired",
-//     });
-//   }
-
-//   user.password = password;
-//   user.resetPasswordToken = undefined;
-//   user.resetPasswordExpire = undefined;
-
-//   await user.save();
-
-//   res.status(200).json({
-//     message: "Password reset successful",
-//   });
-// });
-
-// console.log("reset password controller is working");
-
-
-
 import crypto from "crypto";
 import asyncHandler from "../middleware/asyncHandler.js";
 import { User } from "../models/user.model.js";
+import ErrorHandler from "../utils/ErrorHandler.js";
 
 
 // =====================================================
 // RESET PASSWORD
 // verify reset token and set a new password
 // =====================================================
-export const resetPassword = asyncHandler(async (req, res) => {
+export const resetPassword = asyncHandler(async (req, res, next) => {
   const { token } = req.params;
 
  // support multiple request body field names
@@ -80,36 +22,26 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
 // reset token is required
   if (!token) {
-    return res.status(400).json({
-      message: "Reset token is required",
-    });
+    return next(new ErrorHandler("Reset token is required", 400));
   }
 
   //password is required
   if (!password) {
-    return res.status(400).json({
-      message: "Password is required",
-    });
+    return next(new ErrorHandler("Password is required", 400));
   }
 //validate minimum password length
   if (password.length < 6) {
-    return res.status(400).json({
-      message: "Password must be at least 6 characters long",
-    });
+    return next(new ErrorHandler("Password must be at least 6 characters long", 400));
   }
 
   // confirm password is required
   if (!confirmPassword) {
-    return res.status(400).json({
-      message: "Confirm password is required",
-    });
+    return next(new ErrorHandler("Confirm password is required", 400));
   }
 
 // check password confirmation
   if (password !== confirmPassword) {
-    return res.status(400).json({
-      message: "Passwords do not match",
-    });
+    return next(new ErrorHandler("Passwords do not match", 400));
   }
 
 // hash the reset token to match DB value
@@ -125,9 +57,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    return res.status(400).json({
-      message: "Token invalid or expired",
-    });
+    return next(new ErrorHandler("Token invalid or expired", 400));
   }
 
   // set new password
@@ -142,6 +72,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   await user.save();
 
   return res.status(200).json({
+    success: true,
     message: "Password reset successful",
   });
 });

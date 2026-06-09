@@ -1,100 +1,3 @@
-// import express from "express";
-// import dotenv from "dotenv";
-// import cors from "cors";
-// import cookieParser from "cookie-parser";
-// import { connectDB } from "./scr/config/db.js";
-// import userRouter from "./scr/routes/auth.route.js";
-// import contestRouter from "./scr/routes/contest.route.js";
-// import teamRouter from "./scr/routes/teamRoute.js";
-// import submissionRouter from "./scr/routes/submission.route.js";
-// import dashboardRouter from "./scr/routes/dashboard.routes.js";
-// import participationRouter from "./scr/routes/participation.routes.js";
-
-
-// dotenv.config();
-
-// const app = express();
-
-
-// app.use(cors({  
-
-//   origin: [
-//     "http://localhost:5173",
-//     "https://learnearnweb.netlify.app"
-//   ], 
-  
-//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-//   credentials: true
-
-// }));
-
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-// app.use(cookieParser());
-
-
-// app.use("/api/v1/auth",userRouter );
-// app.use("/api/v1/contest", contestRouter);
-// app.use("/api/v1/team", teamRouter);
-// app.use("/api/v1/submission", submissionRouter);
-// app.use("/api/v1/", dashboardRouter);
-// app.use("/api/v1/participations", participationRouter);
-// //app.use("/api/v1/notifications", notificationRouter);
-
-
-// app.get("/", (req, res) => {
-//   res.json({ message: "Server working" });
-// });
-
-// app.use((err, req, res, next) => {
-//   console.error("Unhandled server error:", err.message);
-
-//   if (res.headersSent) {
-//     return next(err);
-//   }
-
-//   if (err?.name === "MulterError") {
-//     const message =
-//       err.code === "LIMIT_UNEXPECTED_FILE" && err.field
-//         ? `Unexpected field: ${err.field}. Allowed upload fields are image, projectBriefing, and projectBriefingPdf.`
-//         : err.message || "Invalid upload request";
-
-//     return res.status(400).json({ message });
-//   }
-
-//   if (
-//     /Only JPG, PNG, JPEG, and WEBP images are allowed|Only PDF files are allowed for the project briefing|Only contest images and PDF project briefings are allowed/i.test(
-//       err?.message || ""
-//     )
-//   ) {
-//     return res.status(400).json({
-//       message: err.message,
-//     });
-//   }
-
-//   return res.status(err.status || err.statusCode || 500).json({
-//     message: err.message || "Internal server error",
-//   });
-// });
-
-
-
-// const PORT = process.env.PORT || 8000;
-
-// connectDB()
-//   .then(() => {
-//     app.listen(PORT, () => {
-
-//       console.log(`Server running on ${PORT}`);
-//     });
-
-//   })
-//   .catch((err) => {
-//     console.log("DB ERROR:", err.message);
-//   });
-
-
-
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -107,109 +10,38 @@ import teamRouter from "./scr/routes/teamRoute.js";
 import submissionRouter from "./scr/routes/submission.route.js";
 import dashboardRouter from "./scr/routes/dashboard.routes.js";
 import participationRouter from "./scr/routes/participation.routes.js";
+import errorMiddleware from "./scr/middleware/errorMiddleware.js";
+import ApiResponse from "./scr/utils/ApiResponse.js";
 
 dotenv.config();
 
 const app = express();
 
-
-// =====================================================
-// CORS SETUP
-// বাংলা: frontend origin allow করা হচ্ছে
-// English: allow frontend origins with credentials
-// =====================================================
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://learnearnweb.netlify.app",
-    ],
+    origin: ["http://localhost:5173", "https://learnearnweb.netlify.app"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
 );
 
-
-// =====================================================
-// BASIC MIDDLEWARES
-// বাংলা: JSON, form data, cookies parse করবে
-// English: parse JSON, URL-encoded body, and cookies
-// =====================================================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-
-// =====================================================
-// ROUTES
-// বাংলা: সব routers register করা হচ্ছে
-// English: register all application routes
-// =====================================================
 app.use("/api/v1/auth", userRouter);
 app.use("/api/v1/contest", contestRouter);
 app.use("/api/v1/team", teamRouter);
 app.use("/api/v1/submission", submissionRouter);
 app.use("/api/v1", dashboardRouter);
 app.use("/api/v1/participation", participationRouter);
-// app.use("/api/v1/notifications", notificationRouter);
 
-
-// =====================================================
-// ROOT ROUTE
-// বাংলা: server health check
-// English: basic server health route
-// =====================================================
 app.get("/", (req, res) => {
-  res.json({ message: "Server working" });
+  return res.status(200).json(new ApiResponse(200, null, "Server working"));
 });
 
+app.use(errorMiddleware);
 
-// =====================================================
-// GLOBAL ERROR HANDLER
-// বাংলা: সব unhandled error এখানে handle হবে
-// English: global error handling middleware
-// =====================================================
-app.use((err, req, res, next) => {
-  console.error("Unhandled server error:", err.message);
-
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  // বাংলা: multer upload error
-  // English: handle multer-specific errors
-  if (err?.name === "MulterError") {
-    const message =
-      err.code === "LIMIT_UNEXPECTED_FILE" && err.field
-        ? `Unexpected field: ${err.field}. Allowed upload fields are image, projectBriefing, and projectBriefingPdf.`
-        : err.message || "Invalid upload request";
-
-    return res.status(400).json({ message });
-  }
-
-  // বাংলা: custom file type validation error
-  // English: handle custom upload validation errors
-  if (
-    /Only JPG, JPEG, PNG, and WEBP images are allowed|Only PDF files are allowed for the project briefing|Only contest images and PDF project briefings are allowed/i.test(
-      err?.message || ""
-    )
-  ) {
-    return res.status(400).json({
-      message: err.message,
-    });
-  }
-
-  return res.status(err.status || err.statusCode || 500).json({
-    message: err.message || "Internal server error",
-  });
-});
-
-
-// =====================================================
-// SERVER START
-// বাংলা: DB connect হলে server run করবে
-// English: start server after DB connection
-// =====================================================
 const PORT = process.env.PORT || 8000;
 
 connectDB()

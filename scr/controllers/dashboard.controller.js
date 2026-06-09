@@ -1,6 +1,4 @@
 
-
-
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Contest } from "../models/contest.model.js";
 import { User } from "../models/user.model.js";
@@ -54,11 +52,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       .select("title description startDate deadline rewards image status participationType")
       .sort({ deadline: -1 }),
 
-    // =====================================================
     // UPCOMING CONTESTS
-    // বাংলা: upcoming contest count
-    // English: count upcoming contests
-    // =====================================================
     Contest.countDocuments({
       status: "upcoming",
     }),
@@ -87,27 +81,25 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Dashboard stats fetched successfully",
-    data: {
-      activeContests: {
-        count: activeContestsCount,
-        list: activeContestsList,
-      },
-      completedContests: {
-        count: completedContestsCount,
-        list: completedContestsList,
-      },
-      upcomingContests: {
-        count: upcomingContestsCount,
-        list: upcomingContestsList,
-      },
-      totalUsers,
-      submissions: {
-        total: totalSubmissions,
-        pendingEvaluation: pendingEvaluations,
-      },
-      evaluations: {
-        pending: pendingEvaluations,
-      },
+    activeContests: {
+      count: activeContestsCount,
+      list: activeContestsList,
+    },
+    completedContests: {
+      count: completedContestsCount,
+      list: completedContestsList,
+    },
+    upcomingContests: {
+      count: upcomingContestsCount,
+      list: upcomingContestsList,
+    },
+    totalUsers,
+    submissions: {
+      total: totalSubmissions,
+      pendingEvaluation: pendingEvaluations,
+    },
+    evaluations: {
+      pending: pendingEvaluations,
     },
   });
 });

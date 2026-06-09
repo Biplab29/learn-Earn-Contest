@@ -5,6 +5,7 @@ import { Submission } from "../models/submission.model.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
 import { Participation } from "../models/participation.model.js";
 import { Team } from "../models/team.model.js";
+import ErrorHandler from "../utils/ErrorHandler.js";
 
 // valid Mongo ObjectId check
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -100,45 +101,30 @@ const formatSubmissionDetails = (item) => ({
 // SUBMIT PROJECT
 // team project submit korbe
 // =====================================================
-export const submitProject = asyncHandler(async (req, res) => {
+export const submitProject = asyncHandler(async (req, res, next) => {
   const { contestId, teamName, githubLink, liveUrl } = req.body;
   const userId = req.user._id;
 
   if (!contestId || !isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Valid contestId is required",
-    });
+    return next(new ErrorHandler("Valid contestId is required", 400));
   }
 
   if (!teamName || !teamName.trim()) {
-    return res.status(400).json({
-      success: false,
-      message: "Team name is required",
-    });
+    return next(new ErrorHandler("Team name is required", 400));
   }
 
   if (!githubLink || !githubLink.trim()) {
-    return res.status(400).json({
-      success: false,
-      message: "GitHub link is required",
-    });
+    return next(new ErrorHandler("GitHub link is required", 400));
   }
 
   const contest = await Contest.findById(contestId);
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   if (!isContestActive(contest)) {
-    return res.status(400).json({
-      success: false,
-      message: "Contest is not active for submissions",
-    });
+    return next(new ErrorHandler("Contest is not active for submissions", 400));
   }
 
 
@@ -149,10 +135,7 @@ export const submitProject = asyncHandler(async (req, res) => {
 
 
   if (!team) {
-    return res.status(404).json({
-      success: false,
-      message: "Team not found",
-    });
+    return next(new ErrorHandler("Team not found", 404));
   }
 
 
@@ -161,10 +144,7 @@ export const submitProject = asyncHandler(async (req, res) => {
   );
 
   if (!isMember) {
-    return res.status(403).json({
-      success: false,
-      message: "You are not a member of this team",
-    });
+    return next(new ErrorHandler("You are not a member of this team", 403));
   }
 
   const existingSubmission = await Submission.findOne({
@@ -173,10 +153,7 @@ export const submitProject = asyncHandler(async (req, res) => {
   });
 
   if (existingSubmission) {
-    return res.status(400).json({
-      success: false,
-      message: "A submission already exists for this team in this contest",
-    });
+    return next(new ErrorHandler("A submission already exists for this team in this contest", 400));
   }
 
   const submission = await Submission.create({
@@ -222,14 +199,11 @@ export const submitProject = asyncHandler(async (req, res) => {
 // =====================================================
 // GET ALL SUBMISSIONS FOR ONE CONTEST
 // =====================================================
-export const getSubmissionsByContest = asyncHandler(async (req, res) => {
+export const getSubmissionsByContest = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
 
   if (!isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid contestId",
-    });
+    return next(new ErrorHandler("Invalid contestId", 400));
   }
 
   const submissions = await Submission.find({ contest: contestId })
@@ -257,7 +231,7 @@ export const getSubmissionsByContest = asyncHandler(async (req, res) => {
 
 // logged-in user je team er member, sei team submissions dhekabe
 // =====================================================
-export const getMySubmissions = asyncHandler(async (req, res) => {
+export const getMySubmissions = asyncHandler(async (req, res, next) => {
   const teams = await Team.find({
     members: req.user._id,
   }).select("_id");
@@ -282,31 +256,22 @@ export const getMySubmissions = asyncHandler(async (req, res) => {
 // =====================================================
 // admin submission evaluate করবে
 // =====================================================
-export const evaluateSubmission = asyncHandler(async (req, res) => {
+export const evaluateSubmission = asyncHandler(async (req, res, next) => {
   const { totalScore, remarks } = req.body;
   const { id } = req.params;
 
   if (!isValidObjectId(id)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid submission id",
-    });
+    return next(new ErrorHandler("Invalid submission id", 400));
   }
 
   const normalizedScore = normalizeScore(totalScore);
 
   if (normalizedScore === null) {
-    return res.status(400).json({
-      success: false,
-      message: "A valid totalScore greater than or equal to 0 is required",
-    });
+    return next(new ErrorHandler("A valid totalScore greater than or equal to 0 is required", 400));
   }
 
   if (remarks !== undefined && typeof remarks !== "string") {
-    return res.status(400).json({
-      success: false,
-      message: "Remarks must be a string",
-    });
+    return next(new ErrorHandler("Remarks must be a string", 400));
   }
 
   const submission = await Submission.findById(id)
@@ -314,17 +279,11 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
     .populate("contest", "title isClosed");
 
   if (!submission) {
-    return res.status(404).json({
-      success: false,
-      message: "Submission not found",
-    });
+    return next(new ErrorHandler("Submission not found", 404));
   }
 
   if (submission.contest?.isClosed) {
-    return res.status(400).json({
-      success: false,
-      message: "Winner has already been declared for this contest",
-    });
+    return next(new ErrorHandler("Winner has already been declared for this contest", 400));
   }
 
   submission.totalScore = normalizedScore;
@@ -347,7 +306,7 @@ export const evaluateSubmission = asyncHandler(async (req, res) => {
 
 //  PARTICIPANT COUNT
 
-export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
+export const getAllContestParticipantCount = asyncHandler(async (req, res, next) => {
   const submissions = await Submission.find({})
     .populate("team", "members")
     .select("team");
@@ -369,7 +328,7 @@ export const getAllContestParticipantCount = asyncHandler(async (req, res) => {
 // =====================================================
 // HOW MANY CONTESTS CURRENT USER SUBMITTED IN
 // =====================================================
-export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
+export const getMyJoinedContestCount = asyncHandler(async (req, res, next) => {
   const teams = await Team.find({
     members: req.user._id,
   }).select("_id");
@@ -391,7 +350,7 @@ export const getMyJoinedContestCount = asyncHandler(async (req, res) => {
 // =====================================================
 // TOTAL SUBMITTED CONTESTS WITH DETAILS
 // =====================================================
-export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
+export const getTotalSubmittedContests = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses();
 
   const submittedContestIds = await Submission.distinct("contest");
@@ -462,7 +421,7 @@ export const getTotalSubmittedContests = asyncHandler(async (req, res) => {
 // CONTEST SUBMISSION SUMMARY
 // contest-wise submission summary
 // =====================================================
-export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
+export const getContestSubmissionSummary = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses();
 
   const submissions = await Submission.find({})
@@ -536,14 +495,11 @@ export const getContestSubmissionSummary = asyncHandler(async (req, res) => {
 // =====================================================
 // SINGLE CONTEST SUBMISSION REPORT
 // =====================================================
-export const getSingleContestSubmissionReport = asyncHandler(async (req, res) => {
+export const getSingleContestSubmissionReport = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
 
   if (!contestId || !isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Valid contest ID is required",
-    });
+    return next(new ErrorHandler("Valid contest ID is required", 400));
   }
 
   await Contest.syncStatuses({ _id: contestId });
@@ -553,10 +509,7 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
   );
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   const submissions = await Submission.find({ contest: contestId })
@@ -605,7 +558,9 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
       totalPendingSubmissions: pendingSubmissions.length,
       totalEvaluatedStudents: evaluatedStudentIds.size,
     },
-    submissionDetails: submissions.map((item) => formatSubmissionDetails(item)),
+    submissionDetails: submissions.map((item) =>
+      formatSubmissionDetails(item)
+    ),
     evaluatedSubmissionDetails: evaluatedSubmissions.map((item) =>
       formatSubmissionDetails(item)
     ),
@@ -614,14 +569,11 @@ export const getSingleContestSubmissionReport = asyncHandler(async (req, res) =>
 
 // GET EVALUATED USERS BY CONTEST
 
-export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
+export const getEvaluatedUsersByContest = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
 
   if (!contestId || !mongoose.Types.ObjectId.isValid(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid contestId",
-    });
+    return next(new ErrorHandler("Invalid contestId", 400));
   }
 
   const submissions = await Submission.find({
@@ -667,33 +619,24 @@ export const getEvaluatedUsersByContest = asyncHandler(async (req, res) => {
 // =====================================================
 // DECLARE WINNER
 
-export const declareWinner = asyncHandler(async (req, res) => {
+export const declareWinner = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
 
   if (!isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid contestId",
-    });
+    return next(new ErrorHandler("Invalid contestId", 400));
   }
 
   const contest = await Contest.findById(contestId);
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   const now = new Date();
   const deadline = new Date(contest.deadline);
 
   if (now < deadline) {
-    return res.status(400).json({
-      success: false,
-      message: "Winner can be declared only after contest deadline.",
-    });
+    return next(new ErrorHandler("Winner can be declared only after contest deadline.", 400));
   }
 
   if (contest.isClosed) {
@@ -715,10 +658,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
     .populate("contest", "title");
 
   if (submissions.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: "No submissions found.",
-    });
+    return next(new ErrorHandler("No submissions found.", 400));
   }
 
   const evaluatedSubmissions = submissions
@@ -731,11 +671,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
     });
 
   if (evaluatedSubmissions.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "No evaluated submissions found. Evaluate submissions before declaring a winner.",
-    });
+    return next(new ErrorHandler("No evaluated submissions found. Evaluate submissions before declaring a winner.", 400));
   }
 
   const pendingSubmissions = submissions.filter(
@@ -743,11 +679,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
   );
 
   if (pendingSubmissions.length > 0) {
-    return res.status(400).json({
-      success: false,
-      message: "Evaluate all submissions before declaring the winner.",
-      pendingSubmissions: pendingSubmissions.length,
-    });
+    return next(new ErrorHandler("Evaluate all submissions before declaring the winner.", 400));
   }
 
   const leaderboard = addSubmissionRanks(evaluatedSubmissions);
@@ -775,7 +707,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
 // =====================================================
 // GET ALL WINNERS
 // =====================================================
-export const getAllWinners = asyncHandler(async (req, res) => {
+export const getAllWinners = asyncHandler(async (req, res, next) => {
   const contests = await Contest.find({
     winner: { $exists: true, $ne: null },
   })
@@ -801,25 +733,19 @@ export const getAllWinners = asyncHandler(async (req, res) => {
 // =====================================================
 // UPDATE WINNER
 
-export const updateWinner = asyncHandler(async (req, res) => {
+export const updateWinner = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
   const winnerSubmissionId =
     req.body.winnerSubmissionId || req.body.submissionId || req.body.winnerId;
 
   if (!isValidObjectId(contestId) || !isValidObjectId(winnerSubmissionId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Valid contestId and winner submission id are required",
-    });
+    return next(new ErrorHandler("Valid contestId and winner submission id are required", 400));
   }
 
   const contest = await Contest.findById(contestId);
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   const winnerSubmission = await Submission.findOne({
@@ -829,10 +755,7 @@ export const updateWinner = asyncHandler(async (req, res) => {
   }).populate(teamPopulate);
 
   if (!winnerSubmission) {
-    return res.status(404).json({
-      success: false,
-      message: "Evaluated submission not found for this contest",
-    });
+    return next(new ErrorHandler("Evaluated submission not found for this contest", 404));
   }
 
   contest.winner = winnerSubmission._id;
@@ -856,30 +779,21 @@ export const updateWinner = asyncHandler(async (req, res) => {
 // =====================================================
 // DELETE WINNER
 
-export const deleteWinner = asyncHandler(async (req, res) => {
+export const deleteWinner = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
 
   if (!isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Valid contestId is required",
-    });
+    return next(new ErrorHandler("Valid contestId is required", 400));
   }
 
   const contest = await Contest.findById(contestId);
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   if (!contest.winner) {
-    return res.status(400).json({
-      success: false,
-      message: "No winner declared for this contest",
-    });
+    return next(new ErrorHandler("No winner declared for this contest", 400));
   }
 
   contest.winner = null;
@@ -898,31 +812,22 @@ export const deleteWinner = asyncHandler(async (req, res) => {
 // =====================================================
 // UPDATE WINNER DETAILS
 
-export const updateWinnerDetails = asyncHandler(async (req, res) => {
+export const updateWinnerDetails = asyncHandler(async (req, res, next) => {
   const { contestId } = req.params;
   const { teamName, githubLink, liveUrl, totalScore, remarks } = req.body;
 
   if (!isValidObjectId(contestId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Valid contestId is required",
-    });
+    return next(new ErrorHandler("Valid contestId is required", 400));
   }
 
   const contest = await Contest.findById(contestId);
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   if (!contest.winner) {
-    return res.status(400).json({
-      success: false,
-      message: "No winner declared for this contest",
-    });
+    return next(new ErrorHandler("No winner declared for this contest", 400));
   }
 
   const winnerSubmission = await Submission.findById(contest.winner).populate({
@@ -935,27 +840,18 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
   });
 
   if (!winnerSubmission) {
-    return res.status(404).json({
-      success: false,
-      message: "Winner submission not found",
-    });
+    return next(new ErrorHandler("Winner submission not found", 404));
   }
 
   if (teamName !== undefined) {
     if (!winnerSubmission.team) {
-      return res.status(400).json({
-        success: false,
-        message: "Winner submission has no team",
-      });
+      return next(new ErrorHandler("Winner submission has no team", 400));
     }
 
     const normalizedTeamName = teamName.trim();
 
     if (!normalizedTeamName) {
-      return res.status(400).json({
-        success: false,
-        message: "Team name is required",
-      });
+      return next(new ErrorHandler("Team name is required", 400));
     }
 
     const existingTeam = await Team.findOne({
@@ -965,10 +861,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
     }).select("_id");
 
     if (existingTeam) {
-      return res.status(400).json({
-        success: false,
-        message: "Team name is already taken for this contest",
-      });
+      return next(new ErrorHandler("Team name is already taken for this contest", 400));
     }
 
     winnerSubmission.team.teamName = normalizedTeamName;
@@ -979,10 +872,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
     const normalizedGithubLink = githubLink.trim();
 
     if (!normalizedGithubLink) {
-      return res.status(400).json({
-        success: false,
-        message: "GitHub link is required",
-      });
+      return next(new ErrorHandler("GitHub link is required", 400));
     }
 
     winnerSubmission.githubLink = normalizedGithubLink;
@@ -996,10 +886,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
     const normalizedScore = normalizeScore(totalScore);
 
     if (normalizedScore === null) {
-      return res.status(400).json({
-        success: false,
-        message: "A valid totalScore greater than or equal to 0 is required",
-      });
+      return next(new ErrorHandler("A valid totalScore greater than or equal to 0 is required", 400));
     }
 
     winnerSubmission.totalScore = normalizedScore;
@@ -1007,10 +894,7 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
 
   if (remarks !== undefined) {
     if (typeof remarks !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Remarks must be a string",
-      });
+      return next(new ErrorHandler("Remarks must be a string", 400));
     }
 
     winnerSubmission.remarks = remarks.trim();
@@ -1036,15 +920,12 @@ export const updateWinnerDetails = asyncHandler(async (req, res) => {
 // UPDATE EVALUATION
 // evaluated submission-এর score/remarks update করবে
 // =====================================================
-export const updateEvaluation = asyncHandler(async (req, res) => {
+export const updateEvaluation = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { totalScore, remarks } = req.body;
 
   if (!isValidObjectId(id)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid submission id",
-    });
+    return next(new ErrorHandler("Invalid submission id", 400));
   }
 
   const submission = await Submission.findById(id)
@@ -1052,34 +933,22 @@ export const updateEvaluation = asyncHandler(async (req, res) => {
     .populate("contest", "title isClosed");
 
   if (!submission) {
-    return res.status(404).json({
-      success: false,
-      message: "Submission not found",
-    });
+    return next(new ErrorHandler("Submission not found", 404));
   }
 
   if (submission.contest?.isClosed) {
-    return res.status(400).json({
-      success: false,
-      message: "Winner already declared. Evaluation cannot be updated.",
-    });
+    return next(new ErrorHandler("Winner already declared. Evaluation cannot be updated.", 400));
   }
 
   if (submission.status !== "evaluated") {
-    return res.status(400).json({
-      success: false,
-      message: "This submission has not been evaluated yet",
-    });
+    return next(new ErrorHandler("This submission has not been evaluated yet", 400));
   }
 
   if (totalScore !== undefined) {
     const normalizedScore = normalizeScore(totalScore);
 
     if (normalizedScore === null) {
-      return res.status(400).json({
-        success: false,
-        message: "A valid totalScore greater than or equal to 0 is required",
-      });
+      return next(new ErrorHandler("A valid totalScore greater than or equal to 0 is required", 400));
     }
 
     submission.totalScore = normalizedScore;
@@ -1087,10 +956,7 @@ export const updateEvaluation = asyncHandler(async (req, res) => {
 
   if (remarks !== undefined) {
     if (typeof remarks !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Remarks must be a string",
-      });
+      return next(new ErrorHandler("Remarks must be a string", 400));
     }
 
     submission.remarks = remarks.trim();
@@ -1109,14 +975,11 @@ export const updateEvaluation = asyncHandler(async (req, res) => {
 // =====================================================
 // DELETE EVALUATION
 
-export const deleteEvaluation = asyncHandler(async (req, res) => {
+export const deleteEvaluation = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!isValidObjectId(id)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid submission id",
-    });
+    return next(new ErrorHandler("Invalid submission id", 400));
   }
 
   const submission = await Submission.findById(id)
@@ -1124,24 +987,15 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
     .populate("contest", "title isClosed");
 
   if (!submission) {
-    return res.status(404).json({
-      success: false,
-      message: "Submission not found",
-    });
+    return next(new ErrorHandler("Submission not found", 404));
   }
 
   if (submission.contest?.isClosed) {
-    return res.status(400).json({
-      success: false,
-      message: "Winner already declared. Evaluation cannot be deleted.",
-    });
+    return next(new ErrorHandler("Winner already declared. Evaluation cannot be deleted.", 400));
   }
 
   if (submission.status !== "evaluated") {
-    return res.status(400).json({
-      success: false,
-      message: "This submission is not evaluated yet",
-    });
+    return next(new ErrorHandler("This submission is not evaluated yet", 400));
   }
 
   submission.totalScore = 0;
@@ -1161,15 +1015,12 @@ export const deleteEvaluation = asyncHandler(async (req, res) => {
 // =====================================================
 // UPDATE SUBMISSION
 
-export const updateSubmission = asyncHandler(async (req, res) => {
+export const updateSubmission = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { githubLink, liveUrl } = req.body;
 
   if (!isValidObjectId(id)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid submission id",
-    });
+    return next(new ErrorHandler("Invalid submission id", 400));
   }
 
   const submission = await Submission.findById(id)
@@ -1177,10 +1028,7 @@ export const updateSubmission = asyncHandler(async (req, res) => {
     .populate(teamPopulate);
 
   if (!submission) {
-    return res.status(404).json({
-      success: false,
-      message: "Submission not found",
-    });
+    return next(new ErrorHandler("Submission not found", 404));
   }
 
   const canManage = await canManageSubmission({
@@ -1189,31 +1037,19 @@ export const updateSubmission = asyncHandler(async (req, res) => {
   });
 
   if (!canManage) {
-    return res.status(403).json({
-      success: false,
-      message: "You are not allowed to update this submission",
-    });
+    return next(new ErrorHandler("You are not allowed to update this submission", 403));
   }
 
   if (submission.contest?.isClosed) {
-    return res.status(400).json({
-      success: false,
-      message: "Winner already declared. Submission cannot be updated.",
-    });
+    return next(new ErrorHandler("Winner already declared. Submission cannot be updated.", 400));
   }
 
   if (req.user.role !== "admin" && !isContestActive(submission.contest)) {
-    return res.status(400).json({
-      success: false,
-      message: "Submission can only be updated while the contest is active",
-    });
+    return next(new ErrorHandler("Submission can only be updated while the contest is active", 400));
   }
 
   if (submission.status === "evaluated" && req.user.role !== "admin") {
-    return res.status(400).json({
-      success: false,
-      message: "Evaluated submission cannot be updated",
-    });
+    return next(new ErrorHandler("Evaluated submission cannot be updated", 400));
   }
 
   const nextGithubLink =
@@ -1223,10 +1059,7 @@ export const updateSubmission = asyncHandler(async (req, res) => {
     liveUrl !== undefined ? liveUrl?.trim() || "" : submission.liveUrl || "";
 
   if (!nextGithubLink) {
-    return res.status(400).json({
-      success: false,
-      message: "GitHub link is required",
-    });
+    return next(new ErrorHandler("GitHub link is required", 400));
   }
 
   const linksChanged =
@@ -1253,8 +1086,8 @@ export const updateSubmission = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: shouldResetEvaluation
-      ? "Submission updated successfully and evaluation reset to pending"
-      : "Submission updated successfully",
+        ? "Submission updated successfully and evaluation reset to pending"
+        : "Submission updated successfully",
     submission,
   });
 });
@@ -1262,14 +1095,11 @@ export const updateSubmission = asyncHandler(async (req, res) => {
 // =====================================================
 // DELETE SUBMISSION
 
-export const deleteSubmission = asyncHandler(async (req, res) => {
+export const deleteSubmission = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!isValidObjectId(id)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid submission id",
-    });
+    return next(new ErrorHandler("Invalid submission id", 400));
   }
 
   const submission = await Submission.findById(id)
@@ -1277,10 +1107,7 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
     .populate(teamPopulate);
 
   if (!submission) {
-    return res.status(404).json({
-      success: false,
-      message: "Submission not found",
-    });
+    return next(new ErrorHandler("Submission not found", 404));
   }
 
   const canManage = await canManageSubmission({
@@ -1289,24 +1116,15 @@ export const deleteSubmission = asyncHandler(async (req, res) => {
   });
 
   if (!canManage) {
-    return res.status(403).json({
-      success: false,
-      message: "You are not allowed to delete this submission",
-    });
+    return next(new ErrorHandler("You are not allowed to delete this submission", 403));
   }
 
   if (submission.contest?.isClosed) {
-    return res.status(400).json({
-      success: false,
-      message: "Winner already declared. Submission cannot be deleted.",
-    });
+    return next(new ErrorHandler("Winner already declared. Submission cannot be deleted.", 400));
   }
 
   if (req.user.role !== "admin" && !isContestActive(submission.contest)) {
-    return res.status(400).json({
-      success: false,
-      message: "Submission can only be deleted while the contest is active",
-    });
+    return next(new ErrorHandler("Submission can only be deleted while the contest is active", 400));
   }
 
   const contestId = submission.contest?._id || submission.contest;

@@ -37,9 +37,10 @@ export const validate = async (req, res, next) => {
   if (!errors.isEmpty()) {
     await removeCloudinaryFile(req.file);
 
-    return res.status(400).json({ 
-        success: false, 
-        errors: errors.array() 
+    return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array()
     });
   }
   // If no errors, proceed to the controller

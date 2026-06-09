@@ -76,7 +76,7 @@ export const getContestParticipants = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: "Contest participants ",
+    message: "Contest participants",
     count: participants.length,
     participants,
   });

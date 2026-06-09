@@ -3,13 +3,14 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
+import ErrorHandler from "../utils/ErrorHandler.js";
 
 
 
 // REGISTER USER
 // register a new user
 // =====================================================
-export const registerUser = asyncHandler(async (req, res) => {
+export const registerUser = asyncHandler(async (req, res, next) => {
   let createdUser = null;
 
   try {
@@ -35,9 +36,7 @@ export const registerUser = asyncHandler(async (req, res) => {
         await removeCloudinaryFile(profilePicturePublicId);
       }
 
-      return res.status(400).json({
-        message: "All fields are required",
-      });
+      return next(new ErrorHandler("All fields are required", 400));
     }
 
     
@@ -49,9 +48,7 @@ export const registerUser = asyncHandler(async (req, res) => {
         await removeCloudinaryFile(profilePicturePublicId);
       }
 
-      return res.status(400).json({
-        message: "User already exists",
-      });
+      return next(new ErrorHandler("User already exists", 400));
     }
 
     // create new user
@@ -73,6 +70,7 @@ export const registerUser = asyncHandler(async (req, res) => {
     delete userResponse.resetPasswordExpire;
 
     return res.status(201).json({
+      success: true,
       message: "User registered successfully",
       user: userResponse,
     });
@@ -83,16 +81,14 @@ export const registerUser = asyncHandler(async (req, res) => {
       await removeCloudinaryFile(req.file.filename);
     }
 
-    return res.status(500).json({
-      message: error.message,
-    });
+    return next(new ErrorHandler(error.message, 500));
   }
 });
 
 
 // update user profile
 // =====================================================
-export const updateUser = asyncHandler(async (req, res) => {
+export const updateUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { name, email, phoneNumber, gender } = req.body;
 
@@ -103,17 +99,13 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   // validate required fields
   if (!normalizedName || !normalizedEmail || !normalizedPhoneNumber || !normalizedGender) {
-    return res.status(400).json({
-      message: "Please provide all fields",
-    });
+    return next(new ErrorHandler("Please provide all fields", 400));
   }
 
   // only nijer profile update korte parbe, admin hole any user update korte parbe
   // allow self update or admin update
   if (req.user.role !== "admin" && req.user._id.toString() !== id) {
-    return res.status(403).json({
-      message: "You are not allowed to update this user",
-    });
+    return next(new ErrorHandler("You are not allowed to update this user", 403));
   }
 
   // onno user already same email use korche ki na check
@@ -124,9 +116,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   });
 
   if (existingUser) {
-    return res.status(400).json({
-      message: "Email already in use by another user",
-    });
+    return next(new ErrorHandler("Email already in use by another user", 400));
   }
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -141,12 +131,11 @@ export const updateUser = asyncHandler(async (req, res) => {
   ).select("-profilePicturePublicId");
 
   if (!updatedUser) {
-    return res.status(404).json({
-      message: "User not found",
-    });
+    return next(new ErrorHandler("User not found", 404));
   }
 
   return res.status(200).json({
+    success: true,
     message: "User updated successfully",
     user: updatedUser,
   });
@@ -154,13 +143,11 @@ export const updateUser = asyncHandler(async (req, res) => {
 
 //login user with email and password
 // =====================================================
-export const loginUser = asyncHandler(async (req, res) => {
+export const loginUser = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({
-      message: "Please provide all fields",
-    });
+    return next(new ErrorHandler("Please provide all fields", 400));
   }
 
   const user = await User.findOne({
@@ -168,9 +155,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   }).select("+password +refreshToken");
 
   if (!user || !(await user.comparePassword(password))) {
-    return res.status(401).json({
-      message: "Invalid email or password",
-    });
+    return next(new ErrorHandler("Invalid email or password", 401));
   }
 
   const accessToken = user.generateAccessToken();
@@ -196,6 +181,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   res.cookie("refreshToken", refreshToken, options);
 
   return res.status(200).json({
+    success: true,
     message: "User logged in successfully",
     accessToken,
     role: user.role,
@@ -206,7 +192,7 @@ export const loginUser = asyncHandler(async (req, res) => {
 
 // logout user and clear cookies
 // =====================================================
-export const logoutUser = asyncHandler(async (req, res) => {
+export const logoutUser = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(
     req.user._id,
     { refreshToken: null },
@@ -223,6 +209,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
   res.clearCookie("refreshToken", options);
 
   return res.status(200).json({
+    success: true,
     message: "User logged out successfully",
   });
 });
@@ -231,18 +218,17 @@ export const logoutUser = asyncHandler(async (req, res) => {
 // get single user by id
 // =====================================================
 
-export const getSingleUser = asyncHandler(async (req, res) => {
+export const getSingleUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const user = await User.findById(id).select("-profilePicturePublicId");
 
   if (!user) {
-    return res.status(404).json({
-      message: "User not found",
-    });
+    return next(new ErrorHandler("User not found", 404));
   }
 
   return res.status(200).json({
+    success: true,
     message: "User fetched successfully",
     user,
   });
@@ -250,10 +236,11 @@ export const getSingleUser = asyncHandler(async (req, res) => {
 
 // get all users
 // =====================================================
-export const getAllUsers = asyncHandler(async (req, res) => {
+export const getAllUsers = asyncHandler(async (req, res, next) => {
   const users = await User.find().select("-profilePicturePublicId");
 
   return res.status(200).json({
+    success: true,
     message: "Users fetched successfully",
     count: users.length,
     users,
@@ -262,23 +249,19 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 
 // admin can delete user
 // =====================================================
-export const deleteUser = asyncHandler(async (req, res) => {
+export const deleteUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const user = await User.findById(id).select("+profilePicturePublicId");
 
   if (!user) {
-    return res.status(404).json({
-      message: "User not found",
-    });
+    return next(new ErrorHandler("User not found", 404));
   }
 
   // admin nijer account delete korte paarbe na
   //  prevent admin self delete
   if (req.user._id.toString() === id) {
-    return res.status(400).json({
-      message: "You cannot delete your own admin account",
-    });
+    return next(new ErrorHandler("You cannot delete your own admin account", 400));
   }
   
   // remove profile picture from cloudinary
@@ -289,6 +272,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
   await User.findByIdAndDelete(id);
 
   return res.status(200).json({
+    success: true,
     message: "User deleted successfully",
   });
 });

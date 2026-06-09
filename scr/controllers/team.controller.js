@@ -8,60 +8,43 @@ import { User } from "../models/user.model.js";
 import { Invitation } from "../models/invitation.model.js";
 import { Participation } from "../models/participation.model.js";
 import { Submission } from "../models/submission.model.js";
+import ErrorHandler from "../utils/ErrorHandler.js";
 
 
 // CREATE TEAM
 
-export const teamCreate = asyncHandler(async (req, res) => {
+export const teamCreate = asyncHandler(async (req, res, next) => {
   const { teamName, contest, teamType } = req.body;
 
   if (!teamName || !contest || !teamType) {
-    return res.status(400).json({
-      success: false,
-      message: "Team name, contest and teamType are required",
-    });
+    return next(new ErrorHandler("Team name, contest and teamType are required", 400));
   }
 
   if (!["solo", "team"].includes(teamType)) {
-    return res.status(400).json({
-      success: false,
-      message: "teamType must be solo or team",
-    });
+    return next(new ErrorHandler("teamType must be solo or team", 400));
   }
 
   const contestDoc = await Contest.findById(contest);
 
   if (!contestDoc) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   const contestStatus = getContestStatus(contestDoc);
 
   if (contestStatus === "completed") {
-    return res.status(400).json({
-      success: false,
-      message: "Contest deadline passed",
-    });
+    return next(new ErrorHandler("Contest deadline passed", 400));
   }
 
   // participationType validation
 
   if (contestDoc.participationType === "solo" && teamType !== "solo") {
-    return res.status(400).json({
-      success: false,
-      message: "Only solo allowed in this contest",
-    });
+    return next(new ErrorHandler("Only solo allowed in this contest", 400));
   }
 
 
   if (contestDoc.participationType === "team" && teamType !== "team") {
-    return res.status(400).json({
-      success: false,
-      message: "Only team allowed in this contest",
-    });
+    return next(new ErrorHandler("Only team allowed in this contest", 400));
   }
 
 
@@ -70,19 +53,13 @@ export const teamCreate = asyncHandler(async (req, res) => {
     contestDoc.participationType !== "team" &&
     contestDoc.participationType !== "both"
   ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid contest participation type",
-    });
+    return next(new ErrorHandler("Invalid contest participation type", 400));
   }
 
   const trimmedTeamName = teamName.trim();
 
   if (!trimmedTeamName) {
-    return res.status(400).json({
-      success: false,
-      message: "Team name required",
-    });
+    return next(new ErrorHandler("Team name required", 400));
   }
 
   
@@ -92,10 +69,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
   });
 
   if (alreadyJoined) {
-    return res.status(400).json({
-      success: false,
-      message: "You already joined this contest",
-    });
+    return next(new ErrorHandler("You already joined this contest", 400));
   }
 
 
@@ -105,10 +79,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
   });
 
   if (existingTeamName) {
-    return res.status(400).json({
-      success: false,
-      message: "Team name already exists",
-    });
+    return next(new ErrorHandler("Team name already exists", 400));
   }
 
   const members = [req.user._id];
@@ -152,8 +123,7 @@ export const teamCreate = asyncHandler(async (req, res) => {
 
   return res.status(201).json({
     success: true,
-    message:
-      teamType === "solo"
+    message: teamType === "solo"
         ? "Solo team created and joined successfully"
         : "Team created successfully",
     team: populatedTeam,
@@ -162,63 +132,42 @@ export const teamCreate = asyncHandler(async (req, res) => {
 
 // INVITE MEMBER
 
-export const inviteMember = asyncHandler(async (req, res) => {
+export const inviteMember = asyncHandler(async (req, res, next) => {
   const { userId } = req.body;
 
   if (!userId) {
-    return res.status(400).json({
-      success: false,
-      message: "User id required",
-    });
+    return next(new ErrorHandler("User id required", 400));
   }
 
   const team = await Team.findById(req.params.id).populate("contest");
 
   if (!team) {
-    return res.status(404).json({
-      success: false,
-      message: "Team not found",
-    });
+    return next(new ErrorHandler("Team not found", 404));
   }
 
   if (team.teamType === "solo") {
-    return res.status(400).json({
-      success: false,
-      message: "Solo team cannot invite members",
-    });
+    return next(new ErrorHandler("Solo team cannot invite members", 400));
   }
 
   // only leader can invite
   if (team.leader.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Only team leader can invite members",
-    });
+    return next(new ErrorHandler("Only team leader can invite members", 403));
   }
 
   if (userId.toString() === req.user._id.toString()) {
-    return res.status(400).json({
-      success: false,
-      message: "You cannot invite yourself",
-    });
+    return next(new ErrorHandler("You cannot invite yourself", 400));
   }
 
   const contestStatus = getContestStatus(team.contest);
 
   if (contestStatus === "completed") {
-    return res.status(400).json({
-      success: false,
-      message: "Contest deadline passed",
-    });
+    return next(new ErrorHandler("Contest deadline passed", 400));
   }
 
   const user = await User.findById(userId);
 
   if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: "User not found",
-    });
+    return next(new ErrorHandler("User not found", 404));
   }
 
   const alreadyMember = team.members.some(
@@ -226,10 +175,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
   );
 
   if (alreadyMember) {
-    return res.status(400).json({
-      success: false,
-      message: "User already in team",
-    });
+    return next(new ErrorHandler("User already in team", 400));
   }
 
   const alreadyJoined = await Team.findOne({
@@ -238,10 +184,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
   });
 
   if (alreadyJoined) {
-    return res.status(400).json({
-      success: false,
-      message: "User already in another team in this contest",
-    });
+    return next(new ErrorHandler("User already in another team in this contest", 400));
   }
 
   const existingInvite = await Invitation.findOne({
@@ -252,10 +195,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
   });
 
   if (existingInvite) {
-    return res.status(400).json({
-      success: false,
-      message: "Invitation already sent",
-    });
+    return next(new ErrorHandler("Invitation already sent", 400));
   }
 
   const pendingInvites = await Invitation.countDocuments({
@@ -267,10 +207,7 @@ export const inviteMember = asyncHandler(async (req, res) => {
   const maxTeamSize = team.contest.maxTeamSize || 1;
 
   if (team.members.length + pendingInvites >= maxTeamSize) {
-    return res.status(400).json({
-      success: false,
-      message: `Team is full (max ${maxTeamSize} members)`,
-    });
+    return next(new ErrorHandler(`Team is full (max ${maxTeamSize} members)`, 400));
   }
 
   const token = crypto.randomBytes(32).toString("hex");
@@ -309,14 +246,11 @@ export const inviteMember = asyncHandler(async (req, res) => {
 
 // CONFIRM INVITATION
 
-export const confirmInvitation = asyncHandler(async (req, res) => {
+export const confirmInvitation = asyncHandler(async (req, res, next) => {
   const token = req.body.token || req.params.token;
 
   if (!token) {
-    return res.status(400).json({
-      success: false,
-      message: "Token required",
-    });
+    return next(new ErrorHandler("Token required", 400));
   }
 
   const invitation = await Invitation.findOne({
@@ -325,46 +259,31 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   });
 
   if (!invitation) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid token",
-    });
+    return next(new ErrorHandler("Invalid token", 400));
   }
 
   if (invitation.tokenExpiry < new Date()) {
     invitation.status = "expired";
     await invitation.save();
 
-    return res.status(400).json({
-      success: false,
-      message: "Invitation expired",
-    });
+    return next(new ErrorHandler("Invitation expired", 400));
   }
 
   // only invited user can accept
   if (invitation.invitedUser.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "This invitation is not for you",
-    });
+    return next(new ErrorHandler("This invitation is not for you", 403));
   }
 
   const team = await Team.findById(invitation.team).populate("contest");
 
   if (!team) {
-    return res.status(404).json({
-      success: false,
-      message: "Team not found",
-    });
+    return next(new ErrorHandler("Team not found", 404));
   }
 
   const contestStatus = getContestStatus(team.contest);
 
   if (contestStatus === "completed") {
-    return res.status(400).json({
-      success: false,
-      message: "Contest deadline passed",
-    });
+    return next(new ErrorHandler("Contest deadline passed", 400));
   }
 
   const alreadyJoined = await Team.findOne({
@@ -373,19 +292,13 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
   });
 
   if (alreadyJoined) {
-    return res.status(400).json({
-      success: false,
-      message: "You already joined this contest",
-    });
+    return next(new ErrorHandler("You already joined this contest", 400));
   }
 
   const maxTeamSize = team.contest.maxTeamSize || 1;
 
   if (team.members.length >= maxTeamSize) {
-    return res.status(400).json({
-      success: false,
-      message: `Team is full (max ${maxTeamSize} members)`,
-    });
+    return next(new ErrorHandler(`Team is full (max ${maxTeamSize} members)`, 400));
   }
 
   team.members.push(req.user._id);
@@ -429,7 +342,7 @@ export const confirmInvitation = asyncHandler(async (req, res) => {
 // =====================================================
 // GET MY INVITATIONS
 // =====================================================
-export const getMyInvitations = asyncHandler(async (req, res) => {
+export const getMyInvitations = asyncHandler(async (req, res, next) => {
   const invitations = await Invitation.find({
     invitedUser: req.user._id,
     status: "pending",
@@ -453,6 +366,7 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
+    message: "Invitations fetched successfully",
     count: invitations.length,
     invitations,
   });
@@ -461,7 +375,7 @@ export const getMyInvitations = asyncHandler(async (req, res) => {
 // =====================================================
 // GET MY TEAMS
 // =====================================================
-export const getMyTeams = asyncHandler(async (req, res) => {
+export const getMyTeams = asyncHandler(async (req, res, next) => {
   const teams = await Team.find({
     members: req.user._id,
   })
@@ -474,6 +388,7 @@ export const getMyTeams = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
+    message: "Teams fetched successfully",
     teams,
   });
 });
@@ -481,7 +396,7 @@ export const getMyTeams = asyncHandler(async (req, res) => {
 // =====================================================
 // GET TEAMS BY CONTEST
 // =====================================================
-export const getTeamsByContest = asyncHandler(async (req, res) => {
+export const getTeamsByContest = asyncHandler(async (req, res, next) => {
   const teams = await Team.find({
     contest: req.params.contestId,
   })
@@ -494,6 +409,7 @@ export const getTeamsByContest = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
+    message: "Contest teams fetched successfully",
     teams,
   });
 });
@@ -502,42 +418,30 @@ export const getTeamsByContest = asyncHandler(async (req, res) => {
 // UPDATE TEAM
 // only leader can update team name
 // =====================================================
-export const updateTeam = asyncHandler(async (req, res) => {
+export const updateTeam = asyncHandler(async (req, res, next) => {
   const { teamName } = req.body;
 
   const team = await Team.findById(req.params.id);
 
   if (!team) {
-    return res.status(404).json({
-      success: false,
-      message: "Team not found",
-    });
+    return next(new ErrorHandler("Team not found", 404));
   }
 
   if (team.leader.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Only leader can update team",
-    });
+    return next(new ErrorHandler("Only leader can update team", 403));
   }
 
   const contestDoc = await Contest.findById(team.contest);
 
   if (contestDoc && getContestStatus(contestDoc) === "completed") {
-    return res.status(400).json({
-      success: false,
-      message: "Completed contest team cannot be updated",
-    });
+    return next(new ErrorHandler("Completed contest team cannot be updated", 400));
   }
 
   if (teamName !== undefined) {
     const trimmedName = teamName.trim();
 
     if (!trimmedName) {
-      return res.status(400).json({
-        success: false,
-        message: "Team name is required",
-      });
+      return next(new ErrorHandler("Team name is required", 400));
     }
 
     const existingTeamName = await Team.findOne({
@@ -547,10 +451,7 @@ export const updateTeam = asyncHandler(async (req, res) => {
     });
 
     if (existingTeamName) {
-      return res.status(400).json({
-        success: false,
-        message: "Team name already exists in this contest",
-      });
+      return next(new ErrorHandler("Team name already exists in this contest", 400));
     }
 
     team.teamName = trimmedName;
@@ -577,30 +478,21 @@ export const updateTeam = asyncHandler(async (req, res) => {
 // DELETE TEAM
 // only leader can delete team
 // =====================================================
-export const deleteTeam = asyncHandler(async (req, res) => {
+export const deleteTeam = asyncHandler(async (req, res, next) => {
   const team = await Team.findById(req.params.id);
 
   if (!team) {
-    return res.status(404).json({
-      success: false,
-      message: "Team not found",
-    });
+    return next(new ErrorHandler("Team not found", 404));
   }
 
   if (team.leader.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Only leader can delete",
-    });
+    return next(new ErrorHandler("Only leader can delete", 403));
   }
 
   const submissionExists = await Submission.findOne({ team: team._id });
 
   if (submissionExists) {
-    return res.status(400).json({
-      success: false,
-      message: "Submitted team cannot be deleted",
-    });
+    return next(new ErrorHandler("Submitted team cannot be deleted", 400));
   }
 
   await Participation.deleteMany({ team: team._id });

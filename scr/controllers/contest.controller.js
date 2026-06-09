@@ -2,6 +2,7 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import { Contest, getContestStatus } from "../models/contest.model.js";
 import removeCloudinaryFile from "../utils/removeCloudinaryFile.js";
+import ErrorHandler from "../utils/ErrorHandler.js";
 import {
   cleanupContestUploads,
   getProjectBriefingDownloadUrl,
@@ -14,164 +15,11 @@ import {
   serializeContests,
 } from "../utils/contest.utils.js";
 
-// =====================================================
+
 // CREATE CONTEST
 // =====================================================
-// export const createContest = asyncHandler(async (req, res) => {
-//   const {
-//     title,
-//     category,
-//     description,
-//     startDate,
-//     deadline,
-//     participationType,
-//     maxTeamSize,
-//     rewards,
-//   } = req.body;
 
-//   const allowedCategories = [
-//     "Web Dev",
-//     "AI/ML",
-//     "App Dev",
-//     "Design",
-//     "Data Science",
-//   ];
-
-//   const imageFile = getUploadedFile(req, "image");
-//   const projectBriefingFiles = getProjectBriefingFiles(req);
-//   const projectBriefingFile = getProjectBriefingFile(req);
-//   const normalizedRewards = normalizeRewards(rewards);
-
-//   const normalizedTitle = title?.trim();
-//   const normalizedCategory = category?.trim();
-//   const normalizedDescription = description?.trim();
-//   const type = participationType?.trim();
-
-//   if (projectBriefingFiles.length > 1) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Upload only one project briefing PDF",
-//     });
-//   }
-
-//   if (
-//     !normalizedTitle ||
-//     !normalizedCategory ||
-//     !normalizedDescription ||
-//     !startDate ||
-//     !deadline ||
-//     !type ||
-//     !Array.isArray(normalizedRewards) ||
-//     normalizedRewards.length === 0
-//   ) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message:
-//         "Title, category, description, startDate, deadline, participationType, and rewards are required",
-//     });
-//   }
-
-//   if (!allowedCategories.includes(normalizedCategory)) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Invalid category value",
-//     });
-//   }
-
-//   if (!req.user || !req.user._id) {
-//     await cleanupContestUploads(req);
-//     return res.status(401).json({
-//       message: "Unauthorized user",
-//     });
-//   }
-
-//   if (!["solo", "team", "both"].includes(type)) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "participationType must be 'solo', 'team', or 'both'",
-//     });
-//   }
-
-//   if (type === "solo" && maxTeamSize && Number(maxTeamSize) !== 1) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Solo contests must have maxTeamSize of 1",
-//     });
-//   }
-
-//   if (type !== "solo" && (!maxTeamSize || Number(maxTeamSize) < 2)) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Team or both-mode contests require a maxTeamSize of at least 2",
-//     });
-//   }
-
-//   const parsedStartDate = new Date(startDate);
-//   const parsedDeadline = new Date(deadline);
-
-//   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Invalid startDate or deadline format",
-//     });
-//   }
-
-//   if (parsedStartDate >= parsedDeadline) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Deadline must be greater than startDate",
-//     });
-//   }
-
-//   const existingContest = await Contest.findOne({
-//     title: normalizedTitle,
-//   }).select("_id");
-
-//   if (existingContest) {
-//     await cleanupContestUploads(req);
-//     return res.status(400).json({
-//       message: "Contest with this title already exists",
-//     });
-//   }
-
-//   let contest;
-
-//   try {
-//     contest = await Contest.create({
-//       title: normalizedTitle,
-//       category: normalizedCategory,
-//       description: normalizedDescription,
-//       startDate: parsedStartDate,
-//       deadline: parsedDeadline,
-//       rewards: normalizedRewards,
-//       image: imageFile?.path || "",
-//       imagePublicId: imageFile?.filename || "",
-//       projectBriefing: projectBriefingFile?.path || "",
-//       projectBriefingPublicId: projectBriefingFile?.filename || "",
-//       projectBriefingOriginalName: projectBriefingFile?.originalname || "",
-//       participationType: type,
-//       maxTeamSize: type === "solo" ? 1 : Number(maxTeamSize),
-//       createdBy: req.user._id,
-//     });
-//   } catch (error) {
-//     await cleanupContestUploads(req);
-//     throw error;
-//   }
-
-//   const populatedContest = await Contest.findById(contest._id).populate(
-//     "createdBy",
-//     "name email"
-//   );
-
-//   return res.status(201).json({
-//     success: true,
-//     message: "Contest created successfully",
-//     contest: serializeContest(populatedContest),
-//   });
-// });
-
-
-export const createContest = asyncHandler(async (req, res) => {
+export const createContest = asyncHandler(async (req, res, next) => {
   const {
     title,
     category,
@@ -195,9 +43,7 @@ export const createContest = asyncHandler(async (req, res) => {
 
   if (projectBriefingFiles.length > 1) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Upload only one project briefing PDF",
-    });
+    return next(new ErrorHandler("Upload only one project briefing PDF", 400));
   }
 
   if (
@@ -211,38 +57,27 @@ export const createContest = asyncHandler(async (req, res) => {
     normalizedRewards.length === 0
   ) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message:
-        "Title, category, description, startDate, deadline, participationType, and rewards are required",
-    });
+    return next(new ErrorHandler("Title, category, description, startDate, deadline, participationType, and rewards are required", 400));
   }
 
   if (!req.user || !req.user._id) {
     await cleanupContestUploads(req);
-    return res.status(401).json({
-      message: "Unauthorized user",
-    });
+    return next(new ErrorHandler("Unauthorized user", 401));
   }
 
   if (!["solo", "team", "both"].includes(type)) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "participationType must be 'solo', 'team', or 'both'",
-    });
+    return next(new ErrorHandler("participationType must be 'solo', 'team', or 'both'", 400));
   }
 
   if (type === "solo" && maxTeamSize && Number(maxTeamSize) !== 1) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Solo contests must have maxTeamSize of 1",
-    });
+    return next(new ErrorHandler("Solo contests must have maxTeamSize of 1", 400));
   }
 
   if (type !== "solo" && (!maxTeamSize || Number(maxTeamSize) < 2)) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Team or both-mode contests require a maxTeamSize of at least 2",
-    });
+    return next(new ErrorHandler("Team or both-mode contests require a maxTeamSize of at least 2", 400));
   }
 
   const parsedStartDate = new Date(startDate);
@@ -250,16 +85,12 @@ export const createContest = asyncHandler(async (req, res) => {
 
   if (!isValidDate(parsedStartDate) || !isValidDate(parsedDeadline)) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Invalid startDate or deadline format",
-    });
+    return next(new ErrorHandler("Invalid startDate or deadline format", 400));
   }
 
   if (parsedStartDate >= parsedDeadline) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Deadline must be greater than startDate",
-    });
+    return next(new ErrorHandler("Deadline must be greater than startDate", 400));
   }
 
   const existingContest = await Contest.findOne({
@@ -268,9 +99,7 @@ export const createContest = asyncHandler(async (req, res) => {
 
   if (existingContest) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Contest with this title already exists",
-    });
+    return next(new ErrorHandler("Contest with this title already exists", 400));
   }
 
   let contest;
@@ -312,7 +141,7 @@ export const createContest = asyncHandler(async (req, res) => {
 // =====================================================
 // GET ALL CONTESTS
 // =====================================================
-export const getAllContests = asyncHandler(async (req, res) => {
+export const getAllContests = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses();
 
   const filter = {};
@@ -327,6 +156,7 @@ export const getAllContests = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
+    message: "Contests fetched successfully",
     contests: serializeContests(contests),
   });
 });
@@ -334,7 +164,7 @@ export const getAllContests = asyncHandler(async (req, res) => {
 // =====================================================
 // GET SINGLE CONTEST
 // =====================================================
-export const getContestById = asyncHandler(async (req, res) => {
+export const getContestById = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses({ _id: req.params.id });
 
   const contest = await Contest.findById(req.params.id).populate(
@@ -343,14 +173,12 @@ export const getContestById = asyncHandler(async (req, res) => {
   );
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   return res.status(200).json({
     success: true,
+    message: "Contest fetched successfully",
     contest: serializeContest(contest),
   });
 });
@@ -358,25 +186,19 @@ export const getContestById = asyncHandler(async (req, res) => {
 // =====================================================
 // DOWNLOAD PROJECT BRIEFING
 // =====================================================
-export const downloadProjectBriefing = asyncHandler(async (req, res) => {
+export const downloadProjectBriefing = asyncHandler(async (req, res, next) => {
   const contest = await Contest.findById(req.params.id).select(
     "projectBriefing projectBriefingPublicId"
   );
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   const downloadUrl = getProjectBriefingDownloadUrl(contest);
 
   if (!downloadUrl) {
-    return res.status(404).json({
-      success: false,
-      message: "Project briefing PDF not found for this contest",
-    });
+    return next(new ErrorHandler("Project briefing PDF not found for this contest", 404));
   }
 
   return res.redirect(downloadUrl);
@@ -386,7 +208,7 @@ export const downloadProjectBriefing = asyncHandler(async (req, res) => {
 // UPDATE CONTEST
 // =====================================================
 
-export const updateContest = asyncHandler(async (req, res) => {
+export const updateContest = asyncHandler(async (req, res, next) => {
   const contest = await Contest.findById(req.params.id);
   const imageFile = getUploadedFile(req, "image");
   const projectBriefingFiles = getProjectBriefingFiles(req);
@@ -398,17 +220,12 @@ export const updateContest = asyncHandler(async (req, res) => {
 
   if (projectBriefingFiles.length > 1) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Upload only one project briefing PDF",
-    });
+    return next(new ErrorHandler("Upload only one project briefing PDF", 400));
   }
 
   if (!contest) {
     await cleanupContestUploads(req);
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   const updatedTitle = (req.body.title ?? contest.title)?.trim();
@@ -439,31 +256,22 @@ export const updateContest = asyncHandler(async (req, res) => {
     updatedRewards.length === 0
   ) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message:
-        "Title, category, description, startDate, deadline, and rewards are required",
-    });
+    return next(new ErrorHandler("Title, category, description, startDate, deadline, and rewards are required", 400));
   }
 
   if (!isValidDate(updatedStartDate) || !isValidDate(updatedDeadline)) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Invalid startDate or deadline format",
-    });
+    return next(new ErrorHandler("Invalid startDate or deadline format", 400));
   }
 
   if (updatedStartDate >= updatedDeadline) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Deadline must be greater than startDate",
-    });
+    return next(new ErrorHandler("Deadline must be greater than startDate", 400));
   }
 
   if (!["solo", "team", "both"].includes(updatedParticipationType)) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "participationType must be 'solo', 'team', or 'both'",
-    });
+    return next(new ErrorHandler("participationType must be 'solo', 'team', or 'both'", 400));
   }
 
   if (
@@ -472,9 +280,7 @@ export const updateContest = asyncHandler(async (req, res) => {
     Number(req.body.maxTeamSize) !== 1
   ) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Solo contests must have maxTeamSize of 1",
-    });
+    return next(new ErrorHandler("Solo contests must have maxTeamSize of 1", 400));
   }
 
   if (
@@ -482,9 +288,7 @@ export const updateContest = asyncHandler(async (req, res) => {
     (!Number.isInteger(updatedMaxTeamSize) || updatedMaxTeamSize < 2)
   ) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Team or both-mode contests require a maxTeamSize of at least 2",
-    });
+    return next(new ErrorHandler("Team or both-mode contests require a maxTeamSize of at least 2", 400));
   }
 
   const duplicateContest = await Contest.findOne({
@@ -494,9 +298,7 @@ export const updateContest = asyncHandler(async (req, res) => {
 
   if (duplicateContest) {
     await cleanupContestUploads(req);
-    return res.status(400).json({
-      message: "Contest with this title already exists",
-    });
+    return next(new ErrorHandler("Contest with this title already exists", 400));
   }
 
   const previousImagePublicId = contest.imagePublicId;
@@ -565,14 +367,11 @@ export const updateContest = asyncHandler(async (req, res) => {
 // =====================================================
 // DELETE CONTEST
 // =====================================================
-export const deleteContest = asyncHandler(async (req, res) => {
+export const deleteContest = asyncHandler(async (req, res, next) => {
   const contest = await Contest.findById(req.params.id);
 
   if (!contest) {
-    return res.status(404).json({
-      success: false,
-      message: "Contest not found",
-    });
+    return next(new ErrorHandler("Contest not found", 404));
   }
 
   await contest.deleteOne();
@@ -598,7 +397,7 @@ export const deleteContest = asyncHandler(async (req, res) => {
 // =====================================================
 // GET ACTIVE CONTESTS
 // =====================================================
-export const getActiveContests = asyncHandler(async (req, res) => {
+export const getActiveContests = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses();
 
   const contests = await Contest.find({
@@ -617,7 +416,7 @@ export const getActiveContests = asyncHandler(async (req, res) => {
 // =====================================================
 // GET UPCOMING CONTESTS
 // =====================================================
-export const getUpcomingContests = asyncHandler(async (req, res) => {
+export const getUpcomingContests = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses();
 
   const contests = await Contest.find({
@@ -636,7 +435,7 @@ export const getUpcomingContests = asyncHandler(async (req, res) => {
 // =====================================================
 // GET COMPLETED CONTESTS
 // =====================================================
-export const getCompletedContests = asyncHandler(async (req, res) => {
+export const getCompletedContests = asyncHandler(async (req, res, next) => {
   await Contest.syncStatuses();
 
   const contests = await Contest.find({
