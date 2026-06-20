@@ -4,9 +4,11 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
+    "start": "nodemon server.js",
     "dev": "nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node ./node_modules/@playwright/test/cli.js test",
+    "test:api": "node ./node_modules/@playwright/test/cli.js test",
+    "selenium": "mocha tests/selenium/**/*.test.js --timeout 60000"
   },
   "keywords": [],
   "author": "",
@@ -38,5 +40,11 @@
     "url": "https://github.com/Biplab29/learn-Earn-Contest/issues"
   },
   "homepage": "https://github.com/Biplab29/learn-Earn-Contest#readme",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.2",
+    "mocha": "^11.7.6",
+    "selenium-webdriver": "^4.44.0"
+  }
 }

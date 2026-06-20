@@ -864,8 +864,12 @@ export const updateWinnerDetails = asyncHandler(async (req, res, next) => {
       return next(new ErrorHandler("Team name is already taken for this contest", 400));
     }
 
+    await Team.updateOne(
+      { _id: winnerSubmission.team._id },
+      { $set: { teamName: normalizedTeamName } },
+      { runValidators: true }
+    );
     winnerSubmission.team.teamName = normalizedTeamName;
-    await winnerSubmission.team.save();
   }
 
   if (githubLink !== undefined) {
