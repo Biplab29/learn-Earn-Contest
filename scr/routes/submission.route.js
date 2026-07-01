@@ -20,6 +20,7 @@ import {
   deleteEvaluation,
   updateSubmission,
   deleteSubmission,
+  getStudentLeaderboard,
 } from "../controllers/submission.controller.js";
 
 import { verifyJWT, authorizeRoles } from "../middleware/checkAuthUser.js";
@@ -134,6 +135,9 @@ submissionRouter.put(
   authorizeRoles("admin"),
   updateWinnerDetails
 );
+
+// global student leaderboard
+submissionRouter.get("/leaderboard", verifyJWT, getStudentLeaderboard);
 
 // submission owner/team member update/delete
 submissionRouter.patch("/:id", verifyJWT, updateSubmission);

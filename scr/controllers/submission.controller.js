@@ -39,8 +39,8 @@ const teamPopulate = {
   path: "team",
   select: "teamName members leader",
   populate: [
-    { path: "members", select: "name email phoneNumber gender" },
-    { path: "leader", select: "name email phoneNumber gender" },
+    { path: "members", select: "name email phoneNumber gender profilePicture" },
+    { path: "leader", select: "name email phoneNumber gender profilePicture" },
   ],
 };
 
@@ -1161,5 +1161,57 @@ export const deleteSubmission = asyncHandler(async (req, res, next) => {
     message: "Submission deleted successfully",
     submissionId: id,
     contestId,
+  });
+});
+
+
+// =====================================================
+// GET STUDENT LEADERBOARD (GLOBAL)
+// =====================================================
+export const getStudentLeaderboard = asyncHandler(async (req, res, next) => {
+  const submissions = await Submission.find({ status: "evaluated" })
+    .populate(teamPopulate);
+
+  const studentMap = new Map();
+
+  submissions.forEach((submission) => {
+    const team = submission.team;
+    if (!team) return;
+
+    const members = team.members || [];
+    members.forEach((member) => {
+      if (member.role === "admin") return;
+
+      const memberId = member._id.toString();
+
+      if (!studentMap.has(memberId)) {
+        studentMap.set(memberId, {
+          _id: member._id,
+          name: member.name,
+          email: member.email,
+          profilePicture: member.profilePicture || "",
+          score: 0,
+          submissions: 0,
+        });
+      }
+
+      const studentData = studentMap.get(memberId);
+      studentData.score += submission.totalScore || 0;
+      studentData.submissions += 1;
+    });
+  });
+
+  const leaderboard = Array.from(studentMap.values())
+    .sort((a, b) => b.score - a.score);
+
+  const rankedLeaderboard = leaderboard.map((student, index) => ({
+    rank: index + 1,
+    ...student,
+  }));
+
+  return res.status(200).json({
+    success: true,
+    message: "Leaderboard fetched successfully",
+    leaderboard: rankedLeaderboard,
   });
 });
